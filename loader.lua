@@ -1,10 +1,11 @@
 --[[
     ===================================================================
-    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V7 (CHUẨN BỘ LỌC ĐỘ HIẾM)
-    - Sửa lỗi lọc: Mặc định TẮT các độ hiếm thấp (Common, Rare, Epic, Legendary)
-    - Chỉ mua đúng Độ Hiếm được TÍCH CHỌN trong bảng "Chọn Độ Hiếm (Buy Rarities)"
-    - Nhận diện chuẩn xác TextLabel chứa độ hiếm trên đầu thuyền
-    - Nếu không nhận diện được độ hiếm, chỉ mua khi người dùng bật "Unknown"
+    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V8
+    BỔ SUNG TÍNH NĂNG:
+    - 🗑️ Auto Trash (Tự động vứt rác hạt giống chưa phát triển)
+    - 🗑️ Bảng Chọn Độ Hiếm Vứt Rác (Trash Rarities Modal)
+    - Mặc định BẬT vứt các độ hiếm rác thấp (Common, Rare, Epic)
+    - Tự động Equip tool Ungrown thỏa mãn bộ lọc ➜ Kích hoạt nút Trash Brainrot
     ===================================================================
 --]]
 
@@ -27,6 +28,7 @@ local LocalPlayer = Players.LocalPlayer
 local AutoPlant = false
 local AutoBuy = false
 local AutoBuyAll = false
+local AutoTrash = false
 local AutoCollect = false
 local AutoSell = false
 local AntiAFK = false
@@ -42,7 +44,7 @@ local ALL_FORMS = {
     "Starfall", "Rainbow", "Hacker", "Lava", "Cooked"
 }
 
--- High-tier rarities enabled by default, LOW-tier (Common, Rare, Epic, Legendary, Unknown) OFF by default!
+-- 🛒 Buy Rarities Map (High-tier ON, Low-tier OFF by default)
 local SelectedRarities = {
     ["Common"]    = false,
     ["Rare"]      = false,
@@ -59,6 +61,23 @@ local SelectedRarities = {
     ["Unknown"]   = false
 }
 
+-- 🗑️ Trash Rarities Map (Low-tier Common/Rare/Epic ON for trashing by default!)
+local TrashRarities = {
+    ["Common"]    = true,
+    ["Rare"]      = true,
+    ["Epic"]      = true,
+    ["Legendary"] = false,
+    ["Mythical"]  = false,
+    ["Godly"]     = false,
+    ["Secret"]    = false,
+    ["Divine"]    = false,
+    ["OG"]        = false,
+    ["Celestial"] = false,
+    ["Eternal"]   = false,
+    ["Forbidden"] = false,
+    ["Unknown"]   = false
+}
+
 -- All Forms enabled by default
 local SelectedForms = {}
 for _, f in ipairs(ALL_FORMS) do SelectedForms[f] = true end
@@ -68,6 +87,7 @@ local FilterMode = "RARITY_ONLY"
 
 local PlantDelay = 0.2
 local BuyDelay = 0.15
+local TrashDelay = 0.25
 
 -- Helper function to make ProximityPrompt instant and infinite range
 local function optimizePrompt(prompt)
@@ -98,6 +118,34 @@ local function triggerPrompt(prompt)
     end)
 end
 
+-- Helper to detect tool rarity
+local function detectToolRarity(tool)
+    if not tool or not tool:IsA("Tool") then return "Unknown" end
+    
+    -- Check attribute
+    local attr = tool:GetAttribute("Rarity") or tool:GetAttribute("Tier")
+    if attr then return tostring(attr) end
+    
+    -- Check StringValue children
+    local rVal = tool:FindFirstChild("Rarity") or tool:FindFirstChild("Tier")
+    if rVal and rVal:IsA("StringValue") then return rVal.Value end
+
+    -- Check tool Name for explicit rarity keyword
+    local tName = string.lower(tool.Name)
+    for _, r in ipairs(ALL_RARITIES) do
+        if r ~= "Unknown" and string.find(tName, string.lower(r)) then
+            return r
+        end
+    end
+
+    -- Default basic ungrown tools (e.g. Ungrown Fluri Flura, Ungrown Chillin Chili) to Common
+    if string.find(tName, "ungrown") then
+        return "Common"
+    end
+
+    return "Unknown"
+end
+
 -- ── GUI Creation ──
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "GreedyBrainrotsGui"
@@ -108,8 +156,8 @@ if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("Player
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 330, 0, 440)
-MainFrame.Position = UDim2.new(0.5, -165, 0.35, -220)
+MainFrame.Size = UDim2.new(0, 330, 0, 480)
+MainFrame.Position = UDim2.new(0.5, -165, 0.35, -240)
 MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -140,7 +188,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -40, 1, 0)
 Title.Position = UDim2.new(0, 12, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🧠 GREEDY BRAINROTS HUB V7"
+Title.Text = "🧠 GREEDY BRAINROTS HUB V8"
 Title.TextColor3 = Color3.fromRGB(0, 255, 170)
 Title.TextSize = 14
 Title.Font = Enum.Font.SourceSansBold
@@ -167,7 +215,7 @@ Scroll.Size = UDim2.new(1, -16, 1, -85)
 Scroll.Position = UDim2.new(0, 8, 0, 46)
 Scroll.BackgroundTransparency = 1
 Scroll.ScrollBarThickness = 4
-Scroll.CanvasSize = UDim2.new(0, 0, 0, 480)
+Scroll.CanvasSize = UDim2.new(0, 0, 0, 560)
 Scroll.Parent = MainFrame
 
 local Layout = Instance.new("UIListLayout")
@@ -243,11 +291,11 @@ createToggleButton("⚡ Auto Buy ALL (Mua TẤT CẢ): OFF", Color3.fromRGB(255,
     end
 end)
 
--- 4. Open Rarities Modal Button
+-- 4. Open Buy Rarities Modal Button
 local btnRarities = Instance.new("TextButton")
 btnRarities.Size = UDim2.new(1, 0, 0, 34)
 btnRarities.BackgroundColor3 = Color3.fromRGB(35, 35, 52)
-btnRarities.Text = "🎯 Chọn Độ Hiếm (Buy Rarities)..."
+btnRarities.Text = "🎯 Chọn Độ Hiếm Mua (Buy Rarities)..."
 btnRarities.TextColor3 = Color3.fromRGB(255, 200, 100)
 btnRarities.Font = Enum.Font.SourceSansBold
 btnRarities.TextSize = 13
@@ -256,11 +304,11 @@ local rCorner = Instance.new("UICorner")
 rCorner.CornerRadius = UDim.new(0, 8)
 rCorner.Parent = btnRarities
 
--- 5. Open Forms Modal Button
+-- 5. Open Buy Forms Modal Button
 local btnForms = Instance.new("TextButton")
 btnForms.Size = UDim2.new(1, 0, 0, 34)
 btnForms.BackgroundColor3 = Color3.fromRGB(35, 35, 52)
-btnForms.Text = "⚡ Chọn Dòng Form (Buy Forms)..."
+btnForms.Text = "⚡ Chọn Dòng Form Mua (Buy Forms)..."
 btnForms.TextColor3 = Color3.fromRGB(180, 120, 255)
 btnForms.Font = Enum.Font.SourceSansBold
 btnForms.TextSize = 13
@@ -273,7 +321,7 @@ fCorner.Parent = btnForms
 local btnMode = Instance.new("TextButton")
 btnMode.Size = UDim2.new(1, 0, 0, 34)
 btnMode.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
-btnMode.Text = "🔀 Chế Độ Lọc: [ Chỉ Độ Hiếm ]"
+btnMode.Text = "🔀 Chế Độ Lọc Mua: [ Chỉ Độ Hiếm ]"
 btnMode.TextColor3 = Color3.fromRGB(255, 200, 100)
 btnMode.Font = Enum.Font.SourceSansBold
 btnMode.TextSize = 12
@@ -285,20 +333,47 @@ mCorner.Parent = btnMode
 btnMode.MouseButton1Click:Connect(function()
     if FilterMode == "RARITY_ONLY" then
         FilterMode = "FORM_ONLY"
-        btnMode.Text = "🔀 Chế Độ Lọc: [ Chỉ Dòng Form ]"
+        btnMode.Text = "🔀 Chế Độ Lọc Mua: [ Chỉ Dòng Form ]"
         btnMode.TextColor3 = Color3.fromRGB(180, 120, 255)
     elseif FilterMode == "FORM_ONLY" then
         FilterMode = "BOTH"
-        btnMode.Text = "🔀 Chế Độ Lọc: [ CẢ HAI (Rarity + Form) ]"
+        btnMode.Text = "🔀 Chế Độ Lọc Mua: [ CẢ HAI (Rarity + Form) ]"
         btnMode.TextColor3 = Color3.fromRGB(255, 255, 255)
     else
         FilterMode = "RARITY_ONLY"
-        btnMode.Text = "🔀 Chế Độ Lọc: [ Chỉ Độ Hiếm ]"
+        btnMode.Text = "🔀 Chế Độ Lọc Mua: [ Chỉ Độ Hiếm ]"
         btnMode.TextColor3 = Color3.fromRGB(255, 200, 100)
     end
 end)
 
--- 7. Auto Collect Button
+-- 7. Auto Trash Button (Vứt Rác Theo Lọc)
+createToggleButton("🗑️ Auto Trash (Vứt rác theo lọc): OFF", Color3.fromRGB(255, 80, 120), function(btn, stroke)
+    AutoTrash = not AutoTrash
+    if AutoTrash then
+        btn.Text = "🗑️ Auto Trash (Vứt rác theo lọc): ON"
+        btn.TextColor3 = Color3.fromRGB(255, 80, 120)
+        stroke.Color = Color3.fromRGB(255, 80, 120)
+    else
+        btn.Text = "🗑️ Auto Trash (Vứt rác theo lọc): OFF"
+        btn.TextColor3 = Color3.fromRGB(220, 220, 240)
+        stroke.Color = Color3.fromRGB(45, 45, 60)
+    end
+end)
+
+-- 8. Open Trash Rarities Modal Button
+local btnTrashRarities = Instance.new("TextButton")
+btnTrashRarities.Size = UDim2.new(1, 0, 0, 34)
+btnTrashRarities.BackgroundColor3 = Color3.fromRGB(50, 30, 42)
+btnTrashRarities.Text = "🗑️ Chọn Độ Hiếm Vứt Rác (Trash Rarities)..."
+btnTrashRarities.TextColor3 = Color3.fromRGB(255, 120, 160)
+btnTrashRarities.Font = Enum.Font.SourceSansBold
+btnTrashRarities.TextSize = 13
+btnTrashRarities.Parent = Scroll
+local trCorner = Instance.new("UICorner")
+trCorner.CornerRadius = UDim.new(0, 8)
+trCorner.Parent = btnTrashRarities
+
+-- 9. Auto Collect Button
 createToggleButton("💵 Auto Collect (Gom Tiền): OFF", Color3.fromRGB(255, 220, 0), function(btn, stroke)
     AutoCollect = not AutoCollect
     if AutoCollect then
@@ -312,7 +387,7 @@ createToggleButton("💵 Auto Collect (Gom Tiền): OFF", Color3.fromRGB(255, 22
     end
 end)
 
--- 8. Auto Sell Button
+-- 10. Auto Sell Button
 createToggleButton("💰 Auto Sell (Bán Hết): OFF", Color3.fromRGB(255, 100, 100), function(btn, stroke)
     AutoSell = not AutoSell
     if AutoSell then
@@ -326,7 +401,7 @@ createToggleButton("💰 Auto Sell (Bán Hết): OFF", Color3.fromRGB(255, 100, 
     end
 end)
 
--- 9. Anti-AFK Button
+-- 11. Anti-AFK Button
 createToggleButton("🛡️ Anti-AFK (Chống Văng): OFF", Color3.fromRGB(0, 200, 255), function(btn, stroke)
     AntiAFK = not AntiAFK
     if AntiAFK then
@@ -364,7 +439,7 @@ local function setStatus(txt)
 end
 
 -- ═══════════════════════════════════════════════════════════
--- MODAL MAKER UTIL FOR RARITIES & FORMS
+-- MODAL MAKER UTIL FOR RARITIES, FORMS & TRASH
 -- ═══════════════════════════════════════════════════════════
 local function createSelectionModal(titleText, itemsTable, selectedMap)
     local ModalFrame = Instance.new("Frame")
@@ -506,14 +581,16 @@ local function createSelectionModal(titleText, itemsTable, selectedMap)
     return ModalFrame
 end
 
-local raritiesModal = createSelectionModal("🎯 Chọn Độ Hiếm (Buy Rarities)", ALL_RARITIES, SelectedRarities)
-local formsModal = createSelectionModal("⚡ Chọn Dòng Form (Buy Forms)", ALL_FORMS, SelectedForms)
+local raritiesModal = createSelectionModal("🎯 Chọn Độ Hiếm Mua (Buy Rarities)", ALL_RARITIES, SelectedRarities)
+local formsModal = createSelectionModal("⚡ Chọn Dòng Form Mua (Buy Forms)", ALL_FORMS, SelectedForms)
+local trashModal = createSelectionModal("🗑️ Chọn Độ Hiếm Vứt Rác (Trash Rarities)", ALL_RARITIES, TrashRarities)
 
 btnRarities.MouseButton1Click:Connect(function() raritiesModal.Visible = not raritiesModal.Visible end)
 btnForms.MouseButton1Click:Connect(function() formsModal.Visible = not formsModal.Visible end)
+btnTrashRarities.MouseButton1Click:Connect(function() trashModal.Visible = not trashModal.Visible end)
 
 -- ═══════════════════════════════════════════════════════════
--- CORE AUTOMATION LOOPS (Precision Filter System)
+-- CORE AUTOMATION LOOPS
 -- ═══════════════════════════════════════════════════════════
 
 -- 1. Auto Plant Loop (Equip Ungrown + Trigger Plant Prompt)
@@ -573,7 +650,7 @@ task.spawn(function()
                             if model then
                                 local searchContainer = model.Parent or model
 
-                                -- 1. Check Attributes on model and parent
+                                -- 1. Check Attributes
                                 local attrRarity = model:GetAttribute("Rarity") or searchContainer:GetAttribute("Rarity")
                                 local attrForm = model:GetAttribute("Form") or searchContainer:GetAttribute("Form")
                                 
@@ -584,20 +661,14 @@ task.spawn(function()
                                 for _, desc in pairs(searchContainer:GetDescendants()) do
                                     if desc:IsA("TextLabel") and desc.Text ~= "" then
                                         local txt = string.lower(desc.Text)
-                                        -- Match Rarity exact words
                                         for _, rName in ipairs(ALL_RARITIES) do
-                                            if rName ~= "Unknown" then
-                                                if string.find(txt, string.lower(rName)) then
-                                                    detectedRarity = rName
-                                                end
+                                            if rName ~= "Unknown" and string.find(txt, string.lower(rName)) then
+                                                detectedRarity = rName
                                             end
                                         end
-                                        -- Match Form exact words
                                         for _, fName in ipairs(ALL_FORMS) do
-                                            if fName ~= "Normal" then
-                                                if string.find(txt, string.lower(fName)) then
-                                                    detectedForm = fName
-                                                end
+                                            if fName ~= "Normal" and string.find(txt, string.lower(fName)) then
+                                                detectedForm = fName
                                             end
                                         end
                                     end
@@ -614,11 +685,9 @@ task.spawn(function()
                                 end
                             end
 
-                            -- Final fallback: If still undetected, assign "Unknown"
                             local finalRarity = detectedRarity or "Unknown"
                             local finalForm = detectedForm or "Normal"
 
-                            -- Check match against User Selection
                             local rarityMatched = (SelectedRarities[finalRarity] == true)
                             local formMatched = (SelectedForms[finalForm] == true)
 
@@ -645,7 +714,66 @@ task.spawn(function()
     end
 end)
 
--- 3. Auto Sell & Collect Loop
+-- 3. Auto Trash Loop (Vứt rác hạt giống chưa phát triển theo lọc Độ Hiếm)
+task.spawn(function()
+    while true do
+        task.wait(TrashDelay)
+        if AutoTrash then
+            pcall(function()
+                -- Find Trash ProximityPrompt
+                local trashPrompt = nil
+                for _, prompt in pairs(workspace:GetDescendants()) do
+                    if prompt:IsA("ProximityPrompt") and (prompt.ActionText == "Trash Brainrot" or (prompt.Parent and string.lower(prompt.Parent.Name) == "trash")) then
+                        trashPrompt = prompt
+                        break
+                    end
+                end
+
+                if trashPrompt then
+                    local char = LocalPlayer.Character
+                    local bp = LocalPlayer:FindFirstChild("Backpack")
+                    local targetTool = nil
+                    local targetRarity = "Common"
+
+                    -- Check currently equipped tool
+                    if char then
+                        local equipped = char:FindFirstChildOfClass("Tool")
+                        if equipped and string.find(equipped.Name, "Ungrown") then
+                            local r = detectToolRarity(equipped)
+                            if TrashRarities[r] == true then
+                                targetTool = equipped
+                                targetRarity = r
+                            end
+                        end
+                    end
+
+                    -- Check Backpack tools if needed
+                    if not targetTool and bp then
+                        for _, tool in pairs(bp:GetChildren()) do
+                            if tool:IsA("Tool") and string.find(tool.Name, "Ungrown") then
+                                local r = detectToolRarity(tool)
+                                if TrashRarities[r] == true then
+                                    tool.Parent = char
+                                    targetTool = tool
+                                    targetRarity = r
+                                    break
+                                end
+                            end
+                        end
+                    end
+
+                    -- Trigger Trash Prompt if tool is equipped
+                    if targetTool and char and targetTool.Parent == char then
+                        setStatus("🗑️ Đang vứt rác: " .. targetTool.Name .. " [" .. targetRarity .. "]...")
+                        triggerPrompt(trashPrompt)
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- 4. Auto Sell & Collect Loop
 task.spawn(function()
     while true do
         task.wait(0.5)
@@ -671,7 +799,7 @@ task.spawn(function()
     end
 end)
 
--- 4. Anti-AFK Protection
+-- 5. Anti-AFK Protection
 LocalPlayer.Idled:Connect(function()
     if AntiAFK then
         VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
@@ -680,4 +808,4 @@ LocalPlayer.Idled:Connect(function()
     end
 end)
 
-setStatus("Đã cập nhật V7 chuẩn lọc Độ Hiếm!")
+setStatus("Đã khởi tạo V8 - Hỗ trợ Auto Trash theo Độ Hiếm!")

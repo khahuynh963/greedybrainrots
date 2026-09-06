@@ -1,11 +1,11 @@
 --[[
     ===================================================================
-    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V8
+    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V9
     BỔ SUNG TÍNH NĂNG:
-    - 🗑️ Auto Trash (Tự động vứt rác hạt giống chưa phát triển)
-    - 🗑️ Bảng Chọn Độ Hiếm Vứt Rác (Trash Rarities Modal)
-    - Mặc định BẬT vứt các độ hiếm rác thấp (Common, Rare, Epic)
-    - Tự động Equip tool Ungrown thỏa mãn bộ lọc ➜ Kích hoạt nút Trash Brainrot
+    - ➖ Nút Thu Nhỏ (Minimize) trên Thanh Tiêu Đề
+    - 🧠 Nút Tròn Bấm Thu Nhỏ / Mở Nhanh Động (Floating Open/Close Icon)
+    - Cho phép di chuyển (Draggable) nút mở nhanh bất cứ đâu trên màn hình
+    - Bảo toàn đầy đủ tất cả tính năng Auto Plant, Auto Buy, Auto Trash, Anti-AFK
     ===================================================================
 --]]
 
@@ -122,15 +122,12 @@ end
 local function detectToolRarity(tool)
     if not tool or not tool:IsA("Tool") then return "Unknown" end
     
-    -- Check attribute
     local attr = tool:GetAttribute("Rarity") or tool:GetAttribute("Tier")
     if attr then return tostring(attr) end
     
-    -- Check StringValue children
     local rVal = tool:FindFirstChild("Rarity") or tool:FindFirstChild("Tier")
     if rVal and rVal:IsA("StringValue") then return rVal.Value end
 
-    -- Check tool Name for explicit rarity keyword
     local tName = string.lower(tool.Name)
     for _, r in ipairs(ALL_RARITIES) do
         if r ~= "Unknown" and string.find(tName, string.lower(r)) then
@@ -138,7 +135,6 @@ local function detectToolRarity(tool)
         end
     end
 
-    -- Default basic ungrown tools (e.g. Ungrown Fluri Flura, Ungrown Chillin Chili) to Common
     if string.find(tName, "ungrown") then
         return "Common"
     end
@@ -154,6 +150,28 @@ ScreenGui.ResetOnSpawn = false
 pcall(function() ScreenGui.Parent = game:GetService("CoreGui") end)
 if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 
+-- 🧠 Floating Toggle Icon Button (For Mini / Restore)
+local ToggleIcon = Instance.new("TextButton")
+ToggleIcon.Name = "ToggleIcon"
+ToggleIcon.Size = UDim2.new(0, 50, 0, 50)
+ToggleIcon.Position = UDim2.new(0, 15, 0.4, 0)
+ToggleIcon.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
+ToggleIcon.Text = "🧠"
+ToggleIcon.TextSize = 24
+ToggleIcon.Active = true
+ToggleIcon.Draggable = true
+ToggleIcon.Parent = ScreenGui
+
+local IconCorner = Instance.new("UICorner")
+IconCorner.CornerRadius = UDim.new(1, 0)
+IconCorner.Parent = ToggleIcon
+
+local IconStroke = Instance.new("UIStroke")
+IconStroke.Color = Color3.fromRGB(0, 255, 170)
+IconStroke.Thickness = 2
+IconStroke.Parent = ToggleIcon
+
+-- Main Hub Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 330, 0, 480)
@@ -173,6 +191,11 @@ MainStroke.Color = Color3.fromRGB(0, 255, 170)
 MainStroke.Thickness = 1.5
 MainStroke.Parent = MainFrame
 
+-- Connect Floating Icon to Toggle MainFrame
+ToggleIcon.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
+
 -- Header
 local Header = Instance.new("Frame")
 Header.Size = UDim2.new(1, 0, 0, 40)
@@ -185,16 +208,36 @@ HeaderCorner.CornerRadius = UDim.new(0, 14)
 HeaderCorner.Parent = Header
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -40, 1, 0)
+Title.Size = UDim2.new(1, -70, 1, 0)
 Title.Position = UDim2.new(0, 12, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🧠 GREEDY BRAINROTS HUB V8"
+Title.Text = "🧠 GREEDY BRAINROTS HUB V9"
 Title.TextColor3 = Color3.fromRGB(0, 255, 170)
-Title.TextSize = 14
+Title.TextSize = 13
 Title.Font = Enum.Font.SourceSansBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = Header
 
+-- ➖ Minimize Button
+local MiniBtn = Instance.new("TextButton")
+MiniBtn.Size = UDim2.new(0, 26, 0, 26)
+MiniBtn.Position = UDim2.new(1, -62, 0, 7)
+MiniBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 85)
+MiniBtn.Text = "➖"
+MiniBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MiniBtn.Font = Enum.Font.SourceSansBold
+MiniBtn.TextSize = 11
+MiniBtn.Parent = Header
+
+local MiniCorner = Instance.new("UICorner")
+MiniCorner.CornerRadius = UDim.new(0, 6)
+MiniCorner.Parent = MiniBtn
+
+MiniBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+end)
+
+-- ❌ Close Button
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0, 26, 0, 26)
 CloseBtn.Position = UDim2.new(1, -32, 0, 7)
@@ -204,9 +247,11 @@ CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseBtn.Font = Enum.Font.SourceSansBold
 CloseBtn.TextSize = 12
 CloseBtn.Parent = Header
+
 local CloseCorner = Instance.new("UICorner")
 CloseCorner.CornerRadius = UDim.new(0, 6)
 CloseCorner.Parent = CloseBtn
+
 CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
 
 -- Content Scroll
@@ -720,7 +765,6 @@ task.spawn(function()
         task.wait(TrashDelay)
         if AutoTrash then
             pcall(function()
-                -- Find Trash ProximityPrompt
                 local trashPrompt = nil
                 for _, prompt in pairs(workspace:GetDescendants()) do
                     if prompt:IsA("ProximityPrompt") and (prompt.ActionText == "Trash Brainrot" or (prompt.Parent and string.lower(prompt.Parent.Name) == "trash")) then
@@ -735,7 +779,6 @@ task.spawn(function()
                     local targetTool = nil
                     local targetRarity = "Common"
 
-                    -- Check currently equipped tool
                     if char then
                         local equipped = char:FindFirstChildOfClass("Tool")
                         if equipped and string.find(equipped.Name, "Ungrown") then
@@ -747,7 +790,6 @@ task.spawn(function()
                         end
                     end
 
-                    -- Check Backpack tools if needed
                     if not targetTool and bp then
                         for _, tool in pairs(bp:GetChildren()) do
                             if tool:IsA("Tool") and string.find(tool.Name, "Ungrown") then
@@ -762,7 +804,6 @@ task.spawn(function()
                         end
                     end
 
-                    -- Trigger Trash Prompt if tool is equipped
                     if targetTool and char and targetTool.Parent == char then
                         setStatus("🗑️ Đang vứt rác: " .. targetTool.Name .. " [" .. targetRarity .. "]...")
                         triggerPrompt(trashPrompt)
@@ -808,4 +849,4 @@ LocalPlayer.Idled:Connect(function()
     end
 end)
 
-setStatus("Đã khởi tạo V8 - Hỗ trợ Auto Trash theo Độ Hiếm!")
+setStatus("Đã khởi tạo V9 - Hỗ trợ Nút Thu Nhỏ Đóng/Mở Nhanh!")

@@ -13,7 +13,7 @@ pcall(function()
     end
 end)
 
-loadstring(game:HttpGet("https://raw.githubusercontent.com/khahuynh963/greedybrainrots/main/v14.lua?" .. math.random(1, 999999)))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/khahuynh963/greedybrainrots/main/v15.lua?" .. math.random(1, 999999)))()
 
 
 

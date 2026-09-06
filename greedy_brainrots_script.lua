@@ -1,12 +1,10 @@
 --[[
     ===================================================================
-    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V6 (100% FIXED & TESTED)
-    - Mặc định BẬT TẤT CẢ Độ Hiếm (Common -> Forbidden + Unknown)
-    - Mặc định Chế độ Lọc: Chỉ Độ Hiếm (Dễ dùng nhất)
-    - Thêm công tắc [ Mua Tất Cả (Ignore Filter) ] để mua ngay tức thì
-    - Tự động bỏ giới hạn khoảng cách (MaxActivationDistance = 999999)
-    - Tự động giảm thời gian giữ (HoldDuration = 0) cho ProximityPrompt
-    - Tự động Equip Ungrown Tools và kích hoạt Plant trên GrowPad
+    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V7 (CHUẨN BỘ LỌC ĐỘ HIẾM)
+    - Sửa lỗi lọc: Mặc định TẮT các độ hiếm thấp (Common, Rare, Epic, Legendary)
+    - Chỉ mua đúng Độ Hiếm được TÍCH CHỌN trong bảng "Chọn Độ Hiếm (Buy Rarities)"
+    - Nhận diện chuẩn xác TextLabel chứa độ hiếm trên đầu thuyền
+    - Nếu không nhận diện được độ hiếm, chỉ mua khi người dùng bật "Unknown"
     ===================================================================
 --]]
 
@@ -28,7 +26,7 @@ local LocalPlayer = Players.LocalPlayer
 -- ── State Variables ──
 local AutoPlant = false
 local AutoBuy = false
-local AutoBuyAll = false -- Mua tất cả không cần lọc
+local AutoBuyAll = false
 local AutoCollect = false
 local AutoSell = false
 local AntiAFK = false
@@ -44,10 +42,24 @@ local ALL_FORMS = {
     "Starfall", "Rainbow", "Hacker", "Lava", "Cooked"
 }
 
--- Default: All Rarities & Forms ENABLED
-local SelectedRarities = {}
-for _, r in ipairs(ALL_RARITIES) do SelectedRarities[r] = true end
+-- High-tier rarities enabled by default, LOW-tier (Common, Rare, Epic, Legendary, Unknown) OFF by default!
+local SelectedRarities = {
+    ["Common"]    = false,
+    ["Rare"]      = false,
+    ["Epic"]      = false,
+    ["Legendary"] = false,
+    ["Mythical"]  = true,
+    ["Godly"]     = true,
+    ["Secret"]    = true,
+    ["Divine"]    = true,
+    ["OG"]        = true,
+    ["Celestial"] = true,
+    ["Eternal"]   = true,
+    ["Forbidden"] = true,
+    ["Unknown"]   = false
+}
 
+-- All Forms enabled by default
 local SelectedForms = {}
 for _, f in ipairs(ALL_FORMS) do SelectedForms[f] = true end
 
@@ -128,7 +140,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -40, 1, 0)
 Title.Position = UDim2.new(0, 12, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🧠 GREEDY BRAINROTS HUB V6"
+Title.Text = "🧠 GREEDY BRAINROTS HUB V7"
 Title.TextColor3 = Color3.fromRGB(0, 255, 170)
 Title.TextSize = 14
 Title.Font = Enum.Font.SourceSansBold
@@ -501,7 +513,7 @@ btnRarities.MouseButton1Click:Connect(function() raritiesModal.Visible = not rar
 btnForms.MouseButton1Click:Connect(function() formsModal.Visible = not formsModal.Visible end)
 
 -- ═══════════════════════════════════════════════════════════
--- CORE AUTOMATION LOOPS (Optimized for Instant Execution)
+-- CORE AUTOMATION LOOPS (Precision Filter System)
 -- ═══════════════════════════════════════════════════════════
 
 -- 1. Auto Plant Loop (Equip Ungrown + Trigger Plant Prompt)
@@ -538,55 +550,77 @@ task.spawn(function()
     end
 end)
 
--- 2. Auto Buy Loop (Scan ConveyorOffers / Prompts)
+-- 2. Auto Buy Loop (Strict Filter Detection)
 task.spawn(function()
     while true do
         task.wait(BuyDelay)
         if AutoBuy or AutoBuyAll then
             pcall(function()
-                setStatus("Đang quét Shop (ConveyorOffers)...")
                 for _, prompt in pairs(workspace:GetDescendants()) do
                     if prompt:IsA("ProximityPrompt") and (prompt.ActionText == "Buy" or (prompt.Parent and prompt.Parent.Name == "ConveyorBrainrot")) then
                         
-                        -- If AutoBuyAll is ON, trigger buy immediately!
+                        -- Mode: Auto Buy ALL (Instant Buy without filter)
                         if AutoBuyAll then
-                            setStatus("Đang Mua Tất Cả (Auto Buy ALL)...")
+                            setStatus("⚡ Mua Tất Cả (Auto Buy ALL)...")
                             triggerPrompt(prompt)
-                        else
+                        
+                        -- Mode: Auto Buy (Strict Filter)
+                        elseif AutoBuy then
                             local model = prompt.Parent
-                            local itemRarity = "Unknown"
-                            local itemForm = "Normal"
+                            local detectedRarity = nil
+                            local detectedForm = "Normal"
 
                             if model then
-                                local modelName = model:GetFullName()
-                                local modelSimpleName = model.Name
+                                local searchContainer = model.Parent or model
 
-                                -- Attribute check
-                                if model:GetAttribute("Rarity") then itemRarity = tostring(model:GetAttribute("Rarity")) end
-                                if model:GetAttribute("Form") then itemForm = tostring(model:GetAttribute("Form")) end
+                                -- 1. Check Attributes on model and parent
+                                local attrRarity = model:GetAttribute("Rarity") or searchContainer:GetAttribute("Rarity")
+                                local attrForm = model:GetAttribute("Form") or searchContainer:GetAttribute("Form")
+                                
+                                if attrRarity then detectedRarity = tostring(attrRarity) end
+                                if attrForm then detectedForm = tostring(attrForm) end
 
-                                -- TextLabel check
-                                for _, desc in pairs(model:GetDescendants()) do
+                                -- 2. Scan TextLabels in BillboardGui / SurfaceGui / Model
+                                for _, desc in pairs(searchContainer:GetDescendants()) do
                                     if desc:IsA("TextLabel") and desc.Text ~= "" then
-                                        local txt = desc.Text
+                                        local txt = string.lower(desc.Text)
+                                        -- Match Rarity exact words
                                         for _, rName in ipairs(ALL_RARITIES) do
-                                            if string.find(string.lower(txt), string.lower(rName)) then itemRarity = rName end
+                                            if rName ~= "Unknown" then
+                                                if string.find(txt, string.lower(rName)) then
+                                                    detectedRarity = rName
+                                                end
+                                            end
                                         end
+                                        -- Match Form exact words
                                         for _, fName in ipairs(ALL_FORMS) do
-                                            if string.find(string.lower(txt), string.lower(fName)) then itemForm = fName end
+                                            if fName ~= "Normal" then
+                                                if string.find(txt, string.lower(fName)) then
+                                                    detectedForm = fName
+                                                end
+                                            end
                                         end
                                     end
                                 end
 
-                                -- Simple Name check
-                                for _, fName in ipairs(ALL_FORMS) do
-                                    if string.find(string.lower(modelSimpleName), string.lower(fName)) then itemForm = fName end
+                                -- 3. Fallback: Search Model Name
+                                if not detectedRarity then
+                                    local fullN = string.lower(model:GetFullName())
+                                    for _, rName in ipairs(ALL_RARITIES) do
+                                        if rName ~= "Unknown" and string.find(fullN, string.lower(rName)) then
+                                            detectedRarity = rName
+                                        end
+                                    end
                                 end
                             end
 
-                            -- Match logic
-                            local rarityMatched = SelectedRarities[itemRarity] or SelectedRarities["Unknown"]
-                            local formMatched = SelectedForms[itemForm] or SelectedForms["Normal"]
+                            -- Final fallback: If still undetected, assign "Unknown"
+                            local finalRarity = detectedRarity or "Unknown"
+                            local finalForm = detectedForm or "Normal"
+
+                            -- Check match against User Selection
+                            local rarityMatched = (SelectedRarities[finalRarity] == true)
+                            local formMatched = (SelectedForms[finalForm] == true)
 
                             local shouldBuy = false
                             if FilterMode == "BOTH" then
@@ -598,8 +632,10 @@ task.spawn(function()
                             end
 
                             if shouldBuy then
-                                setStatus("Đã gửi lệnh Mua: " .. itemForm .. " " .. itemRarity .. "...")
+                                setStatus("🛒 Đang mua: [" .. finalRarity .. "] " .. finalForm .. "...")
                                 triggerPrompt(prompt)
+                            else
+                                setStatus("🔍 Đã bỏ qua: [" .. finalRarity .. "] " .. finalForm .. " (Không khớp bộ lọc)")
                             end
                         end
                     end
@@ -644,4 +680,4 @@ LocalPlayer.Idled:Connect(function()
     end
 end)
 
-setStatus("Đã khởi tạo Hub V6 - Đã bật sẵn TẤT CẢ Độ Hiếm!")
+setStatus("Đã cập nhật V7 chuẩn lọc Độ Hiếm!")

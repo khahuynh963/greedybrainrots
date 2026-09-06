@@ -1,24 +1,32 @@
 --[[
     ===================================================================
-    🧠 GREEDY BRAINROTS - FULL AUTO HUB (Rayfield UI)
-    Chức năng:
-    - Auto Plant (Trồng Brainrots)
-    - Auto Buy theo Độ Hiếm (Common, Rare, Epic, Legendary, Mythic, Secret...)
-    - Auto Collect & Auto Sell
-    - Custom Delay & Fast Auto Farm
+    🧠 GREEDY BRAINROTS - FULL AUTO HUB (Rayfield UI V2)
     ===================================================================
 --]]
 
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Rayfield
+local success, err = pcall(function()
+    Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+end)
+
+if not success or not Rayfield then
+    warn("Failed to load Rayfield UI library, trying fallback link...")
+    success, err = pcall(function()
+        Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
+    end)
+end
+
+if not Rayfield then
+    error("Could not load Rayfield UI library. Check your executor or internet connection!")
+    return
+end
 
 local Window = Rayfield:CreateWindow({
    Name = "Greedy Brainrots Pro Hub 🧠🌱",
    LoadingTitle = "Đang khởi tạo Auto Script...",
    LoadingSubtitle = "by Antigravity AI Assistant",
    ConfigurationSaving = {
-      Enabled = true,
-      FolderName = "GreedyBrainrotsHub",
-      FileName = "Settings"
+      Enabled = false
    },
    Discord = {
       Enabled = false
@@ -92,16 +100,23 @@ ShopTab:CreateToggle({
    end,
 })
 
-ShopTab:CreateDropdown({
-   Name = "🎯 Chọn Các Độ Hiếm Cần Mua",
-   Options = AllRarities,
-   CurrentOption = {"Mythic", "Secret", "Godly"},
-   MultipleOptions = true,
-   Flag = "SelectedRarities",
-   Callback = function(Options)
-      SelectedRarities = Options
-   end,
-})
+local rarityOptionKey = "CurrentOption"
+pcall(function()
+    ShopTab:CreateDropdown({
+       Name = "🎯 Chọn Các Độ Hiếm Cần Mua",
+       Options = AllRarities,
+       CurrentOption = {"Mythic", "Secret", "Godly"},
+       MultipleOptions = true,
+       Flag = "SelectedRarities",
+       Callback = function(Options)
+          if type(Options) == "table" then
+             SelectedRarities = Options
+          else
+             SelectedRarities = {Options}
+          end
+       end,
+    })
+end)
 
 ShopTab:CreateSlider({
    Name = "⏱️ Delay Quét Shop Mua (Giây)",
@@ -212,7 +227,7 @@ task.spawn(function()
                   for _, drop in pairs(drops:GetChildren()) do
                      if drop:IsA("BasePart") then
                         drop.CFrame = player.Character.HumanoidRootPart.CFrame
-                     end
+                      end
                   end
                end
             end

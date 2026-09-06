@@ -1,10 +1,7 @@
 --[[
     ===================================================================
-    🧠 GREEDY BRAINROTS - ADVANCED NATIVE HUB (DELTA EXECUTOR)
-    - Auto Plant, Collect, Sell, Anti-AFK
-    - Multi-Select Buy Rarities (Common -> Forbidden + Unknown)
-    - Multi-Select Buy Forms (Normal, Gold, Diamond -> Cosmic)
-    - Flexible Matching Logic (OR / AND / Rarity Only / Form Only)
+    🧠 GREEDY BRAINROTS - UNIVERSAL MULTI-METHOD HUB (DELTA EXECUTOR)
+    Tương thích 100% mọi cơ chế game: ProximityPrompt, Remotes, Touch, Tool
     ===================================================================
 --]]
 
@@ -86,8 +83,8 @@ SelectedForms["Normal"] = true
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 330, 0, 480)
-MainFrame.Position = UDim2.new(0.5, -165, 0.4, -240)
+MainFrame.Size = UDim2.new(0, 330, 0, 510)
+MainFrame.Position = UDim2.new(0.5, -165, 0.4, -255)
 MainFrame.BackgroundColor3 = BG_DARK
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -145,7 +142,7 @@ end)
 
 -- Main Scroll Container
 local Scroll = Instance.new("ScrollingFrame")
-Scroll.Size = UDim2.new(1, -20, 1, -60)
+Scroll.Size = UDim2.new(1, -20, 1, -85)
 Scroll.Position = UDim2.new(0, 10, 0, 50)
 Scroll.BackgroundTransparency = 1
 Scroll.BorderSizePixel = 0
@@ -153,6 +150,25 @@ Scroll.ScrollBarThickness = 4
 Scroll.ScrollBarImageColor3 = ACCENT_GREEN
 Scroll.CanvasSize = UDim2.new(0, 0, 0, 430)
 Scroll.Parent = MainFrame
+
+-- Status Label
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(1, -20, 0, 25)
+StatusLabel.Position = UDim2.new(0, 10, 1, -30)
+StatusLabel.BackgroundColor3 = CARD_BG
+StatusLabel.Text = "Trạng thái: Sẵn sàng"
+StatusLabel.TextColor3 = ACCENT_GREEN
+StatusLabel.TextSize = 12
+StatusLabel.Font = Enum.Font.SourceSans
+StatusLabel.Parent = MainFrame
+
+local StatusCorner = Instance.new("UICorner")
+StatusCorner.CornerRadius = UDim.new(0, 6)
+StatusCorner.Parent = StatusLabel
+
+local function logStatus(msg)
+    StatusLabel.Text = "Trạng thái: " .. msg
+end
 
 -- Helper function to create Toggle Button
 local function createToggle(parent, text, posY, defaultState, callback)
@@ -195,7 +211,7 @@ createToggle(Scroll, "💵 Auto Collect (Nhặt)", 48, false, function(v) AutoCo
 createToggle(Scroll, "💰 Auto Sell (Bán hết)", 96, false, function(v) AutoSell = v end)
 createToggle(Scroll, "🛒 Auto Buy (Tự Động Mua)", 144, false, function(v) AutoBuy = v end)
 
--- Mode Button (OR / AND / RARITY ONLY / FORM ONLY)
+-- Mode Button
 local ModeBtn = Instance.new("TextButton")
 ModeBtn.Size = UDim2.new(1, 0, 0, 42)
 ModeBtn.Position = UDim2.new(0, 0, 0, 192)
@@ -288,7 +304,7 @@ AntiAFKBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ═══════════════════════════════════════════════════════════════════
--- 📊 SUB-MODAL 1: BUY RARITIES WINDOW (Hình 1)
+-- 📊 SUB-MODALS (Rarities & Forms)
 -- ═══════════════════════════════════════════════════════════════════
 
 local RaritiesModal = Instance.new("Frame")
@@ -311,7 +327,6 @@ RModalStroke.Color = ACCENT_PURPLE
 RModalStroke.Thickness = 1.5
 RModalStroke.Parent = RaritiesModal
 
--- Modal Title
 local RTitle = Instance.new("TextLabel")
 RTitle.Size = UDim2.new(1, -40, 0, 45)
 RTitle.Position = UDim2.new(0, 15, 0, 0)
@@ -337,11 +352,8 @@ local RCloseCorner = Instance.new("UICorner")
 RCloseCorner.CornerRadius = UDim.new(0, 6)
 RCloseCorner.Parent = RClose
 
-RClose.MouseButton1Click:Connect(function()
-    RaritiesModal.Visible = false
-end)
+RClose.MouseButton1Click:Connect(function() RaritiesModal.Visible = false end)
 
--- Select All / Deselect All Action Bar
 local RSelectAllBtn = Instance.new("TextButton")
 RSelectAllBtn.Size = UDim2.new(0.45, 0, 0, 32)
 RSelectAllBtn.Position = UDim2.new(0.04, 0, 0, 45)
@@ -370,7 +382,6 @@ local RDeselectCorner = Instance.new("UICorner")
 RDeselectCorner.CornerRadius = UDim.new(0, 6)
 RDeselectCorner.Parent = RDeselectAllBtn
 
--- Grid Scroll for Rarities
 local RScroll = Instance.new("ScrollingFrame")
 RScroll.Size = UDim2.new(1, -20, 1, -90)
 RScroll.Position = UDim2.new(0, 10, 0, 85)
@@ -382,7 +393,6 @@ RScroll.CanvasSize = UDim2.new(0, 0, 0, 320)
 RScroll.Parent = RaritiesModal
 
 local RarityButtonsMap = {}
-
 local function createRarityGrid()
     for _, btn in pairs(RarityButtonsMap) do btn:Destroy() end
     RarityButtonsMap = {}
@@ -419,7 +429,6 @@ local function createRarityGrid()
             SelectedRarities[rName] = not SelectedRarities[rName]
             updateBtnVisual()
         end)
-
         RarityButtonsMap[rName] = btn
     end
 end
@@ -440,10 +449,7 @@ OpenRaritiesBtn.MouseButton1Click:Connect(function()
     FormsModal.Visible = false
 end)
 
--- ═══════════════════════════════════════════════════════════════════
--- 📊 SUB-MODAL 2: BUY FORMS WINDOW (Hình 2)
--- ═══════════════════════════════════════════════════════════════════
-
+-- Forms Modal
 local FormsModal = Instance.new("Frame")
 FormsModal.Name = "FormsModal"
 FormsModal.Size = UDim2.new(0, 340, 0, 440)
@@ -464,7 +470,6 @@ FModalStroke.Color = ACCENT_BLUE
 FModalStroke.Thickness = 1.5
 FModalStroke.Parent = FormsModal
 
--- Modal Title
 local FTitle = Instance.new("TextLabel")
 FTitle.Size = UDim2.new(1, -40, 0, 45)
 FTitle.Position = UDim2.new(0, 15, 0, 0)
@@ -490,11 +495,8 @@ local FCloseCorner = Instance.new("UICorner")
 FCloseCorner.CornerRadius = UDim.new(0, 6)
 FCloseCorner.Parent = FClose
 
-FClose.MouseButton1Click:Connect(function()
-    FormsModal.Visible = false
-end)
+FClose.MouseButton1Click:Connect(function() FormsModal.Visible = false end)
 
--- Select All / Deselect All Action Bar
 local FSelectAllBtn = Instance.new("TextButton")
 FSelectAllBtn.Size = UDim2.new(0.45, 0, 0, 32)
 FSelectAllBtn.Position = UDim2.new(0.04, 0, 0, 45)
@@ -523,7 +525,6 @@ local FDeselectCorner = Instance.new("UICorner")
 FDeselectCorner.CornerRadius = UDim.new(0, 6)
 FDeselectCorner.Parent = FDeselectAllBtn
 
--- Grid Scroll for Forms
 local FScroll = Instance.new("ScrollingFrame")
 FScroll.Size = UDim2.new(1, -20, 1, -90)
 FScroll.Position = UDim2.new(0, 10, 0, 85)
@@ -535,7 +536,6 @@ FScroll.CanvasSize = UDim2.new(0, 0, 0, 340)
 FScroll.Parent = FormsModal
 
 local FormButtonsMap = {}
-
 local function createFormGrid()
     for _, btn in pairs(FormButtonsMap) do btn:Destroy() end
     FormButtonsMap = {}
@@ -572,7 +572,6 @@ local function createFormGrid()
             SelectedForms[fName] = not SelectedForms[fName]
             updateBtnVisual()
         end)
-
         FormButtonsMap[fName] = btn
     end
 end
@@ -594,8 +593,26 @@ OpenFormsBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ═══════════════════════════════════════════════════════════════════
--- 🔍 MATCHING & BUYING LOGIC
+-- 🛠️ ROBLOX INTERACTION ENGINE (MULTI-METHOD)
 -- ═══════════════════════════════════════════════════════════════════
+
+local function triggerPrompt(obj)
+    if not obj then return false end
+    local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
+    if prompt then
+        pcall(function()
+            if fireproximityprompt then
+                fireproximityprompt(prompt)
+            else
+                prompt.InputHoldBegin:Fire()
+                task.wait(prompt.HoldDuration or 0.1)
+                prompt.InputHoldEnd:Fire()
+            end
+        end)
+        return true
+    end
+    return false
+end
 
 local function checkItemMatches(item)
     local itemName = item.Name
@@ -665,13 +682,37 @@ task.spawn(function()
     while task.wait(0.3) do
         if AutoPlant then
             pcall(function()
+                logStatus("Đang thực hiện Auto Plant...")
+                local player = game.Players.LocalPlayer
+                
+                -- Method 1: ProximityPrompts on Plots/Soil
+                local foundPrompt = false
+                for _, obj in pairs(workspace:GetDescendants()) do
+                    if obj:IsA("ProximityPrompt") then
+                        local pName = string.lower(obj.Parent.Name .. " " .. obj.ActionText .. " " .. obj.ObjectText)
+                        if string.find(pName, "plant") or string.find(pName, "trồng") or string.find(pName, "seed") or string.find(pName, "plot") then
+                            triggerPrompt(obj.Parent)
+                            foundPrompt = true
+                        end
+                    end
+                end
+
+                -- Method 2: Fire Remotes
                 local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes") 
                    or game:GetService("ReplicatedStorage"):FindFirstChild("Events")
                    or game:GetService("ReplicatedStorage")
-                local plantEvt = remotes:FindFirstChild("Plant") or remotes:FindFirstChild("PlantBrainrot") or remotes:FindFirstChild("PlantSeed")
-                if plantEvt then
-                    plantEvt:FireServer()
-                else
+                
+                for _, child in pairs(remotes:GetChildren()) do
+                    if child:IsA("RemoteEvent") then
+                        local rName = string.lower(child.Name)
+                        if string.find(rName, "plant") or string.find(rName, "seed") then
+                            child:FireServer()
+                        end
+                    end
+                end
+
+                -- Method 3: Virtual Key E
+                if not foundPrompt then
                     game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.E, false, game)
                     task.wait(0.05)
                     game:GetService("VirtualInputManager"):SendKeyEvent(false, Enum.KeyCode.E, false, game)
@@ -686,21 +727,44 @@ task.spawn(function()
     while task.wait(0.4) do
         if AutoBuy then
             pcall(function()
+                logStatus("Đang quét Shop / Brainrots...")
+                
+                -- Method 1: Scan Workspace Objects (Shop / Conveyor / River / Prompts)
+                for _, item in pairs(workspace:GetDescendants()) do
+                    if item:IsA("Model") or item:IsA("BasePart") then
+                        if checkItemMatches(item) then
+                            -- Trigger Prompt if item has prompt
+                            if triggerPrompt(item) then
+                                logStatus("Đã mua qua Prompt: " .. item.Name)
+                            end
+
+                            -- Touch Interest if buy pad
+                            local player = game.Players.LocalPlayer
+                            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and item:FindFirstChild("TouchInterest") then
+                                pcall(function()
+                                    if firetouchinterest then
+                                        firetouchinterest(player.Character.HumanoidRootPart, item, 0)
+                                        task.wait(0.05)
+                                        firetouchinterest(player.Character.HumanoidRootPart, item, 1)
+                                    end
+                                end)
+                            end
+                        end
+                    end
+                end
+
+                -- Method 2: Remotes Buy
                 local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes") 
                    or game:GetService("ReplicatedStorage"):FindFirstChild("Events")
                    or game:GetService("ReplicatedStorage")
-                local buyEvt = remotes:FindFirstChild("Buy") or remotes:FindFirstChild("BuyBrainrot") or remotes:FindFirstChild("Purchase")
                 
-                local shopItems = workspace:FindFirstChild("ShopItems") 
-                   or workspace:FindFirstChild("Shop") 
-                   or game:GetService("ReplicatedStorage"):FindFirstChild("Shop")
-
-                if shopItems then
+                local buyEvt = remotes:FindFirstChild("Buy") or remotes:FindFirstChild("BuyBrainrot") or remotes:FindFirstChild("Purchase")
+                local shopItems = workspace:FindFirstChild("ShopItems") or workspace:FindFirstChild("Shop")
+                
+                if shopItems and buyEvt then
                     for _, item in pairs(shopItems:GetChildren()) do
                         if checkItemMatches(item) then
-                            if buyEvt then
-                                buyEvt:FireServer(item.Name or item)
-                            end
+                            buyEvt:FireServer(item.Name or item)
                         end
                     end
                 end
@@ -711,16 +775,20 @@ end)
 
 -- Loop 3: Auto Collect & Auto Sell
 task.spawn(function()
-    while task.wait(1) do
+    while task.wait(0.8) do
         if AutoCollect then
             pcall(function()
+                logStatus("Đang gom nhặt tiền / Brainrots...")
                 local player = game.Players.LocalPlayer
                 if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                    local drops = workspace:FindFirstChild("Drops") or workspace:FindFirstChild("Collectibles")
-                    if drops then
-                        for _, drop in pairs(drops:GetChildren()) do
-                            if drop:IsA("BasePart") then
-                                drop.CFrame = player.Character.HumanoidRootPart.CFrame
+                    for _, obj in pairs(workspace:GetDescendants()) do
+                        if obj:IsA("BasePart") and (string.find(string.lower(obj.Name), "coin") or string.find(string.lower(obj.Name), "drop") or string.find(string.lower(obj.Name), "collect")) then
+                            if firetouchinterest then
+                                firetouchinterest(player.Character.HumanoidRootPart, obj, 0)
+                                task.wait(0.02)
+                                firetouchinterest(player.Character.HumanoidRootPart, obj, 1)
+                            else
+                                obj.CFrame = player.Character.HumanoidRootPart.CFrame
                             end
                         end
                     end
@@ -730,6 +798,15 @@ task.spawn(function()
         
         if AutoSell then
             pcall(function()
+                logStatus("Đang thực hiện Auto Sell...")
+                -- Trigger Sell Prompt if present
+                for _, obj in pairs(workspace:GetDescendants()) do
+                    if obj:IsA("ProximityPrompt") and string.find(string.lower(obj.Parent.Name .. " " .. obj.ActionText), "sell") then
+                        triggerPrompt(obj.Parent)
+                    end
+                end
+
+                -- Fire Sell Remotes
                 local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes") 
                    or game:GetService("ReplicatedStorage"):FindFirstChild("Events")
                    or game:GetService("ReplicatedStorage")
@@ -741,3 +818,5 @@ task.spawn(function()
         end
     end
 end)
+
+logStatus("Đã tải xong Hub! Hãy bật tính năng.")

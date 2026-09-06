@@ -1,6 +1,7 @@
 --[[
-    🔍 GREEDY BRAINROTS - GAME SPY V4
-    Lưu file txt vào thư mục Download trên LDPlayer/Android
+    🔍 GREEDY BRAINROTS - GAME SPY V5
+    Tự động ghi file vào Shared Picture/Misc Folder của LDPlayer
+    File sẽ xuất hiện NGAY LẬP TỨC tại D:\Documents\XuanZhi9\Pictures\GreedyBrainrotsSpy.txt trên máy Windows!
 --]]
 
 local output = {}
@@ -9,7 +10,7 @@ local function log(msg)
     print(msg)
 end
 
-log("========== GREEDY BRAINROTS SPY ==========")
+log("========== GREEDY BRAINROTS SPY V5 ==========")
 log("")
 
 -- 1. Scan ReplicatedStorage
@@ -32,7 +33,7 @@ end
 
 log("")
 
--- 3. Deeper scan
+-- 3. Deeper scan of Workspace
 log("== WORKSPACE DEEPER SCAN ==")
 for _, child in pairs(workspace:GetChildren()) do
     if child:IsA("Folder") or child:IsA("Model") then
@@ -45,11 +46,10 @@ for _, child in pairs(workspace:GetChildren()) do
             log(">> [" .. child.ClassName .. "] " .. child.Name)
             for _, sub in pairs(child:GetChildren()) do
                 log("   [" .. sub.ClassName .. "] " .. sub.Name)
-                -- Go one level deeper
                 pcall(function()
                     for _, sub2 in pairs(sub:GetChildren()) do
-                        if sub2:IsA("RemoteEvent") or sub2:IsA("ProximityPrompt") or sub2:IsA("ClickDetector") or sub2:IsA("StringValue") then
-                            log("      [" .. sub2.ClassName .. "] " .. sub2.Name)
+                        if sub2:IsA("RemoteEvent") or sub2:IsA("ProximityPrompt") or sub2:IsA("ClickDetector") or sub2:IsA("StringValue") or sub2:IsA("ObjectValue") then
+                            log("      [" .. sub2.ClassName .. "] " .. sub2.Name .. " (" .. sub2:GetFullName() .. ")")
                         end
                     end
                 end)
@@ -107,54 +107,34 @@ if cdCount == 0 then log("(Khong co ClickDetector)") end
 
 log("")
 log("== SPY XONG ==")
-log("Hay thu bam MUA / TRONG / BAN 1 lan trong game.")
-log("Ket qua Remote se duoc ghi them vao file.")
 
 local fullOutput = table.concat(output, "\n")
 
 -- ═══════════════════════════════════════════════════════════
--- LƯU FILE VÀO DOWNLOAD (THỬ TẤT CẢ CÁC ĐƯỜNG DẪN)
+-- DỮ LIỆU ĐƯỢC GHI VÀO TẤT CẢ CÁC ĐƯỜNG DẪN BAO GỒM SHARED FOLDER
 -- ═══════════════════════════════════════════════════════════
 
-local savedPath = "unknown"
-
--- Thử tất cả các đường dẫn có thể để lưu vào Download
 local pathsToTry = {
-    -- Relative paths from Delta workspace
-    "../Download/GreedyBrainrotsSpy.txt",
-    "../../Download/GreedyBrainrotsSpy.txt",
-    "../../../Download/GreedyBrainrotsSpy.txt",
-    -- Default Delta workspace
-    "GreedyBrainrotsSpy.txt",
+    -- LDPlayer Shared Folders (xuất hiện thẳng trên Windows D:\Documents\XuanZhi9\Pictures)
+    "/sdcard/Pictures/GreedyBrainrotsSpy.txt",
+    "/storage/emulated/0/Pictures/GreedyBrainrotsSpy.txt",
+    "/sdcard/Misc/GreedyBrainrotsSpy.txt",
+    "/storage/emulated/0/Misc/GreedyBrainrotsSpy.txt",
+    "/sdcard/Download/GreedyBrainrotsSpy.txt",
+    "/storage/emulated/0/Download/GreedyBrainrotsSpy.txt",
+    "GreedyBrainrotsSpy.txt"
 }
 
-for _, path in ipairs(pathsToTry) do
-    local ok = pcall(function()
-        writefile(path, fullOutput)
-    end)
-    if ok then
-        savedPath = path
-        print("DA LUU THANH CONG TAI: " .. path)
+local function saveToFile(content)
+    for _, p in ipairs(pathsToTry) do
+        pcall(function() writefile(p, content) end)
     end
 end
 
--- Also try absolute Android paths
-pcall(function()
-    local absPath = "/storage/emulated/0/Download/GreedyBrainrotsSpy.txt"
-    writefile(absPath, fullOutput)
-    savedPath = absPath
-    print("DA LUU THANH CONG TAI: " .. absPath)
-end)
-
-pcall(function()
-    local absPath = "/sdcard/Download/GreedyBrainrotsSpy.txt"
-    writefile(absPath, fullOutput)
-    savedPath = absPath
-    print("DA LUU THANH CONG TAI: " .. absPath)
-end)
+saveToFile(fullOutput)
 
 -- ═══════════════════════════════════════════════════════════
--- HOOK REMOTE SPY (Ghi lại khi người chơi bấm MUA/TRỒNG/BÁN)
+-- HOOK REMOTE SPY (Ghi nhận real-time khi bấm MUA/TRỒNG/BÁN)
 -- ═══════════════════════════════════════════════════════════
 
 local spyLines = {}
@@ -168,29 +148,20 @@ pcall(function()
                 local args = {...}
                 local argsStr = ""
                 for i, v in ipairs(args) do argsStr = argsStr .. tostring(v) .. ", " end
-                local line = "[REMOTE] " .. method .. " -> " .. self:GetFullName() .. " | Args: (" .. argsStr .. ")"
+                local line = "[REMOTE SPY] " .. method .. " -> " .. self:GetFullName() .. " | Args: (" .. argsStr .. ")"
                 print(line)
                 table.insert(spyLines, line)
                 
-                -- Ghi thêm vào file mỗi khi có Remote mới
-                pcall(function()
-                    local newContent = fullOutput .. "\n\n== REMOTE SPY LOG ==\n" .. table.concat(spyLines, "\n")
-                    for _, path in ipairs(pathsToTry) do
-                        pcall(function() writefile(path, newContent) end)
-                    end
-                    pcall(function() writefile("/storage/emulated/0/Download/GreedyBrainrotsSpy.txt", newContent) end)
-                    pcall(function() writefile("/sdcard/Download/GreedyBrainrotsSpy.txt", newContent) end)
-                end)
+                -- Ghi nhận cập nhật real-time vào Shared Pictures
+                local updatedContent = fullOutput .. "\n\n== REMOTE SPY REAL-TIME LOG ==\n" .. table.concat(spyLines, "\n")
+                saveToFile(updatedContent)
             end
             return oldNc(self, ...)
         end)
     end
 end)
 
--- ═══════════════════════════════════════════════════════════
--- HIỂN THỊ GUI THÔNG BÁO
--- ═══════════════════════════════════════════════════════════
-
+-- Display notification GUI on screen
 pcall(function()
     if game:GetService("CoreGui"):FindFirstChild("SpyOutputGui") then
         game:GetService("CoreGui").SpyOutputGui:Destroy()
@@ -203,8 +174,8 @@ pcall(function()
     if not sg.Parent then sg.Parent = player.PlayerGui end
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 350, 0, 140)
-    frame.Position = UDim2.new(0.5, -175, 0, 10)
+    frame.Size = UDim2.new(0, 360, 0, 130)
+    frame.Position = UDim2.new(0.5, -180, 0, 10)
     frame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
     frame.Active = true
     frame.Draggable = true
@@ -223,9 +194,9 @@ pcall(function()
     title.Size = UDim2.new(1, -40, 0, 30)
     title.Position = UDim2.new(0, 10, 0, 5)
     title.BackgroundTransparency = 1
-    title.Text = "🔍 SPY DA CHAY XONG!"
+    title.Text = "🔍 SPY V5 - READY FOR DEV!"
     title.TextColor3 = Color3.fromRGB(0, 255, 170)
-    title.TextSize = 16
+    title.TextSize = 15
     title.Font = Enum.Font.SourceSansBold
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.Parent = frame
@@ -234,7 +205,7 @@ pcall(function()
     info1.Size = UDim2.new(1, -20, 0, 22)
     info1.Position = UDim2.new(0, 10, 0, 35)
     info1.BackgroundTransparency = 1
-    info1.Text = "✅ File da luu: GreedyBrainrotsSpy.txt"
+    info1.Text = "✅ File tu dong luu qua Windows Shared Folder!"
     info1.TextColor3 = Color3.fromRGB(200, 200, 220)
     info1.TextSize = 13
     info1.Font = Enum.Font.SourceSans
@@ -243,36 +214,25 @@ pcall(function()
 
     local info2 = Instance.new("TextLabel")
     info2.Size = UDim2.new(1, -20, 0, 22)
-    info2.Position = UDim2.new(0, 10, 0, 55)
+    info2.Position = UDim2.new(0, 10, 0, 60)
     info2.BackgroundTransparency = 1
-    info2.Text = "📂 Kiem tra thu muc: Download va Delta"
-    info2.TextColor3 = Color3.fromRGB(200, 200, 220)
-    info2.TextSize = 13
-    info2.Font = Enum.Font.SourceSans
+    info2.Text = "👉 BAM THU MUA / TRONG / BAN 1 LAN TRONG GAME"
+    info2.TextColor3 = Color3.fromRGB(255, 200, 100)
+    info2.TextSize = 12
+    info2.Font = Enum.Font.SourceSansBold
     info2.TextXAlignment = Enum.TextXAlignment.Left
     info2.Parent = frame
 
     local info3 = Instance.new("TextLabel")
     info3.Size = UDim2.new(1, -20, 0, 22)
-    info3.Position = UDim2.new(0, 10, 0, 75)
+    info3.Position = UDim2.new(0, 10, 0, 85)
     info3.BackgroundTransparency = 1
-    info3.Text = "👆 Bay gio hay bam MUA / TRONG / BAN 1 lan"
-    info3.TextColor3 = Color3.fromRGB(255, 200, 100)
-    info3.TextSize = 13
-    info3.Font = Enum.Font.SourceSansBold
+    info3.Text = "Roi bao cho dev biet de doc file!"
+    info3.TextColor3 = Color3.fromRGB(0, 255, 170)
+    info3.TextSize = 12
+    info3.Font = Enum.Font.SourceSans
     info3.TextXAlignment = Enum.TextXAlignment.Left
     info3.Parent = frame
-
-    local info4 = Instance.new("TextLabel")
-    info4.Size = UDim2.new(1, -20, 0, 22)
-    info4.Position = UDim2.new(0, 10, 0, 95)
-    info4.BackgroundTransparency = 1
-    info4.Text = "roi vao Download mo file txt gui cho dev!"
-    info4.TextColor3 = Color3.fromRGB(255, 200, 100)
-    info4.TextSize = 13
-    info4.Font = Enum.Font.SourceSansBold
-    info4.TextXAlignment = Enum.TextXAlignment.Left
-    info4.Parent = frame
 
     local closeBtn = Instance.new("TextButton")
     closeBtn.Size = UDim2.new(0, 24, 0, 24)

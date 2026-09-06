@@ -1,11 +1,10 @@
 --[[
     ===================================================================
-    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V10 (ANTI-BAN & MINIMIZE)
-    BỔ SUNG TÍNH NĂNG:
-    - ➖ Nút Thu Nhỏ (Minimize) hiển thị rõ ở thanh Header (cạnh nút X)
-    - 🧠 Biểu tượng nút tròn Nổi (Floating Icon) luôn ở lề trái để Bấm Ẩn/Hiện
-    - 🛡️ Anti-Ban & Admin Detector (Tự động Server Hop khi thấy Admin)
-    - 🗑️ Auto Trash hạt giống rác (Ungrown) theo độ hiếm
+    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V11 (FIX TRIỆT ĐỂ AUTO TRASH)
+    - SỬA LỖI VỨT RÁC NHẦM: Bỏ hoàn toàn fallback "Common" cũ.
+    - Nếu không xác định 100% độ hiếm ➜ Mặc định gán "Unknown" (AN TOÀN tuyệt đối).
+    - Tách biệt chính xác giữa Dòng Form (Gold, Diamond, Galaxy, Shadow...) và Độ Hiếm.
+    - Chỉ vứt những món có Độ Hiếm XÁC NHẬN CHÍNH XÁC khớp với bảng Trash Rarities.
     ===================================================================
 --]]
 
@@ -67,7 +66,7 @@ local SelectedRarities = {
     ["Unknown"]   = false
 }
 
--- 🗑️ Trash Rarities Map (Low-tier Common/Rare/Epic ON for trashing by default!)
+-- 🗑️ Trash Rarities Map (Low-tier Common/Rare/Epic ON for trashing, Unknown OFF for safety!)
 local TrashRarities = {
     ["Common"]    = true,
     ["Rare"]      = true,
@@ -93,7 +92,7 @@ local FilterMode = "RARITY_ONLY"
 
 local PlantDelay = 0.2
 local BuyDelay = 0.15
-local TrashDelay = 0.25
+local TrashDelay = 0.3
 
 -- ═══════════════════════════════════════════════════════════
 -- ANTI-BAN & ADMIN DETECTION ENGINE
@@ -116,9 +115,7 @@ local function isPlayerAdmin(player)
     pcall(function()
         if GameGroupId > 0 then
             local rank = player:GetRankInGroup(GameGroupId)
-            if rank >= 100 then
-                return true
-            end
+            if rank >= 100 then return true end
         end
     end)
 
@@ -186,16 +183,31 @@ local function triggerPrompt(prompt)
     end)
 end
 
--- Helper to detect tool rarity
+-- ═══════════════════════════════════════════════════════════
+-- SAFE TOOL RARITY DETECTION (KHÔNG ĐOÁN MÒ "COMMON")
+-- ═══════════════════════════════════════════════════════════
 local function detectToolRarity(tool)
     if not tool or not tool:IsA("Tool") then return "Unknown" end
     
+    -- 1. Check Attributes
     local attr = tool:GetAttribute("Rarity") or tool:GetAttribute("Tier")
     if attr then return tostring(attr) end
     
+    -- 2. Check StringValue children
     local rVal = tool:FindFirstChild("Rarity") or tool:FindFirstChild("Tier")
     if rVal and rVal:IsA("StringValue") then return rVal.Value end
 
+    -- 3. Check Configuration / ToolTip
+    if tool.ToolTip and tool.ToolTip ~= "" then
+        local tt = string.lower(tool.ToolTip)
+        for _, r in ipairs(ALL_RARITIES) do
+            if r ~= "Unknown" and string.find(tt, string.lower(r)) then
+                return r
+            end
+        end
+    end
+
+    -- 4. Check explicit Rarity words in tool Name (e.g. Ungrown Legendary ..., Ungrown Mythical ...)
     local tName = string.lower(tool.Name)
     for _, r in ipairs(ALL_RARITIES) do
         if r ~= "Unknown" and string.find(tName, string.lower(r)) then
@@ -203,10 +215,7 @@ local function detectToolRarity(tool)
         end
     end
 
-    if string.find(tName, "ungrown") then
-        return "Common"
-    end
-
+    -- 5. Safe Fallback: If undetected, NEVER assume Common! Return Unknown!
     return "Unknown"
 end
 
@@ -218,7 +227,7 @@ ScreenGui.ResetOnSpawn = false
 pcall(function() ScreenGui.Parent = game:GetService("CoreGui") end)
 if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 
--- 🧠 Floating Toggle Icon Button (Biểu tượng nổi bấm Thu Nhỏ / Mở Nhanh)
+-- 🧠 Floating Toggle Icon Button
 local ToggleIcon = Instance.new("TextButton")
 ToggleIcon.Name = "ToggleIcon"
 ToggleIcon.Size = UDim2.new(0, 52, 0, 52)
@@ -278,14 +287,14 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -75, 1, 0)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🧠 GREEDY BRAINROTS HUB V10"
+Title.Text = "🧠 GREEDY BRAINROTS HUB V11"
 Title.TextColor3 = Color3.fromRGB(0, 255, 170)
 Title.TextSize = 13
 Title.Font = Enum.Font.SourceSansBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = Header
 
--- ➖ Minimize Button (Nút Thu Nhỏ rõ nét)
+-- ➖ Minimize Button
 local MiniBtn = Instance.new("TextButton")
 MiniBtn.Name = "MiniBtn"
 MiniBtn.Size = UDim2.new(0, 28, 0, 28)
@@ -920,7 +929,7 @@ task.spawn(function()
     end
 end)
 
--- 3. Auto Trash Loop
+-- 3. Auto Trash Loop (Vứt rác hạt giống chưa phát triển - CHÍNH XÁC & AN TOÀN)
 task.spawn(function()
     while true do
         task.wait(TrashDelay + (math.random(1, 5) / 100))
@@ -938,24 +947,27 @@ task.spawn(function()
                     local char = LocalPlayer.Character
                     local bp = LocalPlayer:FindFirstChild("Backpack")
                     local targetTool = nil
-                    local targetRarity = "Common"
+                    local targetRarity = "Unknown"
 
+                    -- Check currently equipped tool
                     if char then
                         local equipped = char:FindFirstChildOfClass("Tool")
                         if equipped and string.find(equipped.Name, "Ungrown") then
                             local r = detectToolRarity(equipped)
-                            if TrashRarities[r] == true then
+                            -- ONLY trash if rarity is strictly CONFIRMED to be in TrashRarities map
+                            if r ~= "Unknown" and TrashRarities[r] == true then
                                 targetTool = equipped
                                 targetRarity = r
                             end
                         end
                     end
 
+                    -- Check Backpack tools
                     if not targetTool and bp then
                         for _, tool in pairs(bp:GetChildren()) do
                             if tool:IsA("Tool") and string.find(tool.Name, "Ungrown") then
                                 local r = detectToolRarity(tool)
-                                if TrashRarities[r] == true then
+                                if r ~= "Unknown" and TrashRarities[r] == true then
                                     tool.Parent = char
                                     targetTool = tool
                                     targetRarity = r
@@ -965,6 +977,7 @@ task.spawn(function()
                         end
                     end
 
+                    -- Trigger Trash Prompt
                     if targetTool and char and targetTool.Parent == char then
                         setStatus("🗑️ Đang vứt rác: " .. targetTool.Name .. " [" .. targetRarity .. "]...")
                         triggerPrompt(trashPrompt)
@@ -1010,4 +1023,4 @@ LocalPlayer.Idled:Connect(function()
     end
 end)
 
-setStatus("Đã khởi tạo V10 - Sẵn sàng sử dụng!")
+setStatus("Đã khởi tạo V11 - Sửa triệt để Auto Trash!")

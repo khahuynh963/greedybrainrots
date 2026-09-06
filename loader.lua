@@ -1,11 +1,12 @@
 --[[
     ===================================================================
-    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB (100% PRECISE ENGINE)
-    Phân tích từ dữ liệu Spy thật:
-    - Auto Buy theo Rarity & Form (Quét ConveyorOffers + ProximityPrompt)
-    - Auto Plant (Trồng cây trên GrowPad + Equip Ungrown Tools)
-    - Auto Collect & Sell
-    - Anti-AFK
+    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V6 (100% FIXED & TESTED)
+    - Mặc định BẬT TẤT CẢ Độ Hiếm (Common -> Forbidden + Unknown)
+    - Mặc định Chế độ Lọc: Chỉ Độ Hiếm (Dễ dùng nhất)
+    - Thêm công tắc [ Mua Tất Cả (Ignore Filter) ] để mua ngay tức thì
+    - Tự động bỏ giới hạn khoảng cách (MaxActivationDistance = 999999)
+    - Tự động giảm thời gian giữ (HoldDuration = 0) cho ProximityPrompt
+    - Tự động Equip Ungrown Tools và kích hoạt Plant trên GrowPad
     ===================================================================
 --]]
 
@@ -27,41 +28,10 @@ local LocalPlayer = Players.LocalPlayer
 -- ── State Variables ──
 local AutoPlant = false
 local AutoBuy = false
+local AutoBuyAll = false -- Mua tất cả không cần lọc
 local AutoCollect = false
 local AutoSell = false
 local AntiAFK = false
-
--- Dynamic Filter Settings
-local SelectedRarities = {
-    ["Mythical"] = true,
-    ["Godly"] = true,
-    ["Secret"] = true,
-    ["Divine"] = true,
-    ["OG"] = true,
-    ["Celestial"] = true,
-    ["Eternal"] = true,
-    ["Forbidden"] = true,
-    ["Unknown"] = true
-}
-
-local SelectedForms = {
-    ["Gold"] = true,
-    ["Diamond"] = true,
-    ["Galaxy"] = true,
-    ["Shadow"] = true,
-    ["Electrified"] = true,
-    ["Starfall"] = true,
-    ["Rainbow"] = true,
-    ["Hacker"] = true,
-    ["Lava"] = true,
-    ["Cooked"] = true
-}
-
--- Modes: "BOTH", "RARITY_ONLY", "FORM_ONLY"
-local FilterMode = "BOTH" 
-
-local PlantDelay = 0.3
-local BuyDelay = 0.2
 
 local ALL_RARITIES = {
     "Common", "Rare", "Epic", "Legendary", "Mythical", 
@@ -70,21 +40,49 @@ local ALL_RARITIES = {
 }
 
 local ALL_FORMS = {
-    "Gold", "Diamond", "Galaxy", "Shadow", "Electrified", 
+    "Normal", "Gold", "Diamond", "Galaxy", "Shadow", "Electrified", 
     "Starfall", "Rainbow", "Hacker", "Lava", "Cooked"
 }
 
--- Helper function to trigger ProximityPrompt safely
-local function triggerPrompt(prompt)
+-- Default: All Rarities & Forms ENABLED
+local SelectedRarities = {}
+for _, r in ipairs(ALL_RARITIES) do SelectedRarities[r] = true end
+
+local SelectedForms = {}
+for _, f in ipairs(ALL_FORMS) do SelectedForms[f] = true end
+
+-- Default Filter Mode: RARITY_ONLY
+local FilterMode = "RARITY_ONLY" 
+
+local PlantDelay = 0.2
+local BuyDelay = 0.15
+
+-- Helper function to make ProximityPrompt instant and infinite range
+local function optimizePrompt(prompt)
     if not prompt or not prompt:IsA("ProximityPrompt") then return end
     pcall(function()
+        prompt.MaxActivationDistance = 999999
+        prompt.RequiresLineOfSight = false
+        prompt.HoldDuration = 0
+    end)
+end
+
+-- Helper function to trigger ProximityPrompt with maximum compatibility on Delta
+local function triggerPrompt(prompt)
+    if not prompt or not prompt:IsA("ProximityPrompt") then return end
+    optimizePrompt(prompt)
+
+    pcall(function()
         if fireproximityprompt then
+            fireproximityprompt(prompt, 0)
+            fireproximityprompt(prompt, 100)
             fireproximityprompt(prompt)
-        else
-            prompt:InputHoldBegin()
-            task.wait(0.05)
-            prompt:InputHoldEnd()
         end
+    end)
+    pcall(function()
+        prompt:InputHoldBegin()
+        task.wait(0.01)
+        prompt:InputHoldEnd()
     end)
 end
 
@@ -98,8 +96,8 @@ if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("Player
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 320, 0, 420)
-MainFrame.Position = UDim2.new(0.5, -160, 0.35, -210)
+MainFrame.Size = UDim2.new(0, 330, 0, 440)
+MainFrame.Position = UDim2.new(0.5, -165, 0.35, -220)
 MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -130,7 +128,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -40, 1, 0)
 Title.Position = UDim2.new(0, 12, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🧠 GREEDY BRAINROTS HUB"
+Title.Text = "🧠 GREEDY BRAINROTS HUB V6"
 Title.TextColor3 = Color3.fromRGB(0, 255, 170)
 Title.TextSize = 14
 Title.Font = Enum.Font.SourceSansBold
@@ -157,7 +155,7 @@ Scroll.Size = UDim2.new(1, -16, 1, -85)
 Scroll.Position = UDim2.new(0, 8, 0, 46)
 Scroll.BackgroundTransparency = 1
 Scroll.ScrollBarThickness = 4
-Scroll.CanvasSize = UDim2.new(0, 0, 0, 440)
+Scroll.CanvasSize = UDim2.new(0, 0, 0, 480)
 Scroll.Parent = MainFrame
 
 local Layout = Instance.new("UIListLayout")
@@ -192,34 +190,48 @@ local function createToggleButton(text, color, onClick)
 end
 
 -- 1. Auto Plant Button
-createToggleButton("🌱 Auto Plant (Trồng): OFF", Color3.fromRGB(0, 255, 170), function(btn, stroke)
+createToggleButton("🌱 Auto Plant (Trồng cây): OFF", Color3.fromRGB(0, 255, 170), function(btn, stroke)
     AutoPlant = not AutoPlant
     if AutoPlant then
-        btn.Text = "🌱 Auto Plant (Trồng): ON"
+        btn.Text = "🌱 Auto Plant (Trồng cây): ON"
         btn.TextColor3 = Color3.fromRGB(0, 255, 170)
         stroke.Color = Color3.fromRGB(0, 255, 170)
     else
-        btn.Text = "🌱 Auto Plant (Trồng): OFF"
+        btn.Text = "🌱 Auto Plant (Trồng cây): OFF"
         btn.TextColor3 = Color3.fromRGB(220, 220, 240)
         stroke.Color = Color3.fromRGB(45, 45, 60)
     end
 end)
 
--- 2. Auto Buy Button
-createToggleButton("🛒 Auto Buy (Mua): OFF", Color3.fromRGB(0, 150, 255), function(btn, stroke)
+-- 2. Auto Buy Button (Theo Lọc)
+createToggleButton("🛒 Auto Buy (Mua theo lọc): OFF", Color3.fromRGB(0, 150, 255), function(btn, stroke)
     AutoBuy = not AutoBuy
     if AutoBuy then
-        btn.Text = "🛒 Auto Buy (Mua): ON"
+        btn.Text = "🛒 Auto Buy (Mua theo lọc): ON"
         btn.TextColor3 = Color3.fromRGB(0, 150, 255)
         stroke.Color = Color3.fromRGB(0, 150, 255)
     else
-        btn.Text = "🛒 Auto Buy (Mua): OFF"
+        btn.Text = "🛒 Auto Buy (Mua theo lọc): OFF"
         btn.TextColor3 = Color3.fromRGB(220, 220, 240)
         stroke.Color = Color3.fromRGB(45, 45, 60)
     end
 end)
 
--- 3. Open Rarities Modal Button
+-- 3. Auto Buy ALL Button (Mua tất cả không cần lọc)
+createToggleButton("⚡ Auto Buy ALL (Mua TẤT CẢ): OFF", Color3.fromRGB(255, 170, 0), function(btn, stroke)
+    AutoBuyAll = not AutoBuyAll
+    if AutoBuyAll then
+        btn.Text = "⚡ Auto Buy ALL (Mua TẤT CẢ): ON"
+        btn.TextColor3 = Color3.fromRGB(255, 170, 0)
+        stroke.Color = Color3.fromRGB(255, 170, 0)
+    else
+        btn.Text = "⚡ Auto Buy ALL (Mua TẤT CẢ): OFF"
+        btn.TextColor3 = Color3.fromRGB(220, 220, 240)
+        stroke.Color = Color3.fromRGB(45, 45, 60)
+    end
+end)
+
+-- 4. Open Rarities Modal Button
 local btnRarities = Instance.new("TextButton")
 btnRarities.Size = UDim2.new(1, 0, 0, 34)
 btnRarities.BackgroundColor3 = Color3.fromRGB(35, 35, 52)
@@ -232,7 +244,7 @@ local rCorner = Instance.new("UICorner")
 rCorner.CornerRadius = UDim.new(0, 8)
 rCorner.Parent = btnRarities
 
--- 4. Open Forms Modal Button
+-- 5. Open Forms Modal Button
 local btnForms = Instance.new("TextButton")
 btnForms.Size = UDim2.new(1, 0, 0, 34)
 btnForms.BackgroundColor3 = Color3.fromRGB(35, 35, 52)
@@ -245,12 +257,12 @@ local fCorner = Instance.new("UICorner")
 fCorner.CornerRadius = UDim.new(0, 8)
 fCorner.Parent = btnForms
 
--- 5. Filter Mode Toggle Button
+-- 6. Filter Mode Toggle Button
 local btnMode = Instance.new("TextButton")
 btnMode.Size = UDim2.new(1, 0, 0, 34)
 btnMode.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
-btnMode.Text = "🔀 Chế Độ Lọc: [ CẢ HAI (Rarity + Form) ]"
-btnMode.TextColor3 = Color3.fromRGB(255, 255, 255)
+btnMode.Text = "🔀 Chế Độ Lọc: [ Chỉ Độ Hiếm ]"
+btnMode.TextColor3 = Color3.fromRGB(255, 200, 100)
 btnMode.Font = Enum.Font.SourceSansBold
 btnMode.TextSize = 12
 btnMode.Parent = Scroll
@@ -259,22 +271,22 @@ mCorner.CornerRadius = UDim.new(0, 8)
 mCorner.Parent = btnMode
 
 btnMode.MouseButton1Click:Connect(function()
-    if FilterMode == "BOTH" then
-        FilterMode = "RARITY_ONLY"
-        btnMode.Text = "🔀 Chế Độ Lọc: [ Chỉ Độ Hiếm ]"
-        btnMode.TextColor3 = Color3.fromRGB(255, 200, 100)
-    elseif FilterMode == "RARITY_ONLY" then
+    if FilterMode == "RARITY_ONLY" then
         FilterMode = "FORM_ONLY"
         btnMode.Text = "🔀 Chế Độ Lọc: [ Chỉ Dòng Form ]"
         btnMode.TextColor3 = Color3.fromRGB(180, 120, 255)
-    else
+    elseif FilterMode == "FORM_ONLY" then
         FilterMode = "BOTH"
         btnMode.Text = "🔀 Chế Độ Lọc: [ CẢ HAI (Rarity + Form) ]"
         btnMode.TextColor3 = Color3.fromRGB(255, 255, 255)
+    else
+        FilterMode = "RARITY_ONLY"
+        btnMode.Text = "🔀 Chế Độ Lọc: [ Chỉ Độ Hiếm ]"
+        btnMode.TextColor3 = Color3.fromRGB(255, 200, 100)
     end
 end)
 
--- 6. Auto Collect Button
+-- 7. Auto Collect Button
 createToggleButton("💵 Auto Collect (Gom Tiền): OFF", Color3.fromRGB(255, 220, 0), function(btn, stroke)
     AutoCollect = not AutoCollect
     if AutoCollect then
@@ -288,7 +300,7 @@ createToggleButton("💵 Auto Collect (Gom Tiền): OFF", Color3.fromRGB(255, 22
     end
 end)
 
--- 7. Auto Sell Button
+-- 8. Auto Sell Button
 createToggleButton("💰 Auto Sell (Bán Hết): OFF", Color3.fromRGB(255, 100, 100), function(btn, stroke)
     AutoSell = not AutoSell
     if AutoSell then
@@ -302,7 +314,7 @@ createToggleButton("💰 Auto Sell (Bán Hết): OFF", Color3.fromRGB(255, 100, 
     end
 end)
 
--- 8. Anti-AFK Button
+-- 9. Anti-AFK Button
 createToggleButton("🛡️ Anti-AFK (Chống Văng): OFF", Color3.fromRGB(0, 200, 255), function(btn, stroke)
     AntiAFK = not AntiAFK
     if AntiAFK then
@@ -436,11 +448,12 @@ local function createSelectionModal(titleText, itemsTable, selectedMap)
     local itemButtons = {}
 
     for _, name in ipairs(itemsTable) do
+        local isSel = selectedMap[name]
         local ibtn = Instance.new("TextButton")
         ibtn.Size = UDim2.new(1, 0, 0, 30)
-        ibtn.BackgroundColor3 = selectedMap[name] and Color3.fromRGB(0, 160, 100) or Color3.fromRGB(32, 32, 46)
-        ibtn.Text = (selectedMap[name] and "[✓] " or "[ ] ") .. name
-        ibtn.TextColor3 = selectedMap[name] and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 200)
+        ibtn.BackgroundColor3 = isSel and Color3.fromRGB(0, 160, 100) or Color3.fromRGB(32, 32, 46)
+        ibtn.Text = (isSel and "[✓] " or "[ ] ") .. name
+        ibtn.TextColor3 = isSel and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 200)
         ibtn.Font = Enum.Font.SourceSansBold
         ibtn.TextSize = 12
         ibtn.Parent = mScroll
@@ -453,9 +466,10 @@ local function createSelectionModal(titleText, itemsTable, selectedMap)
 
         ibtn.MouseButton1Click:Connect(function()
             selectedMap[name] = not selectedMap[name]
-            ibtn.BackgroundColor3 = selectedMap[name] and Color3.fromRGB(0, 160, 100) or Color3.fromRGB(32, 32, 46)
-            ibtn.Text = (selectedMap[name] and "[✓] " or "[ ] ") .. name
-            ibtn.TextColor3 = selectedMap[name] and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 200)
+            local nowSel = selectedMap[name]
+            ibtn.BackgroundColor3 = nowSel and Color3.fromRGB(0, 160, 100) or Color3.fromRGB(32, 32, 46)
+            ibtn.Text = (nowSel and "[✓] " or "[ ] ") .. name
+            ibtn.TextColor3 = nowSel and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 200)
         end)
     end
 
@@ -487,7 +501,7 @@ btnRarities.MouseButton1Click:Connect(function() raritiesModal.Visible = not rar
 btnForms.MouseButton1Click:Connect(function() formsModal.Visible = not formsModal.Visible end)
 
 -- ═══════════════════════════════════════════════════════════
--- CORE AUTOMATION LOOPS (Dựa trên dữ liệu Spy chuẩn)
+-- CORE AUTOMATION LOOPS (Optimized for Instant Execution)
 -- ═══════════════════════════════════════════════════════════
 
 -- 1. Auto Plant Loop (Equip Ungrown + Trigger Plant Prompt)
@@ -497,10 +511,10 @@ task.spawn(function()
         if AutoPlant then
             pcall(function()
                 setStatus("Đang Auto Plant (Trồng)...")
-                -- Step A: Equip Ungrown Tool from Backpack if needed
                 local char = LocalPlayer.Character
                 local bp = LocalPlayer:FindFirstChild("Backpack")
                 
+                -- Equip Ungrown Tool from Backpack
                 local currentTool = char and char:FindFirstChildOfClass("Tool")
                 if not currentTool or not string.find(currentTool.Name, "Ungrown") then
                     if bp then
@@ -513,7 +527,7 @@ task.spawn(function()
                     end
                 end
 
-                -- Step B: Trigger Plant ProximityPrompt on GrowPads
+                -- Trigger Plant ProximityPrompt on GrowPads
                 for _, prompt in pairs(workspace:GetDescendants()) do
                     if prompt:IsA("ProximityPrompt") and (prompt.ActionText == "Plant" or prompt.ObjectText == "Grow Pad") then
                         triggerPrompt(prompt)
@@ -524,51 +538,55 @@ task.spawn(function()
     end
 end)
 
--- 2. Auto Buy Loop (Scan ConveyorOffers + Check Rarity & Form)
+-- 2. Auto Buy Loop (Scan ConveyorOffers / Prompts)
 task.spawn(function()
     while true do
         task.wait(BuyDelay)
-        if AutoBuy then
+        if AutoBuy or AutoBuyAll then
             pcall(function()
                 setStatus("Đang quét Shop (ConveyorOffers)...")
                 for _, prompt in pairs(workspace:GetDescendants()) do
                     if prompt:IsA("ProximityPrompt") and (prompt.ActionText == "Buy" or (prompt.Parent and prompt.Parent.Name == "ConveyorBrainrot")) then
-                        local model = prompt.Parent
-                        if model then
-                            local modelName = model:GetFullName()
-                            local modelSimpleName = model.Name
-
-                            -- Detect Rarity & Form
+                        
+                        -- If AutoBuyAll is ON, trigger buy immediately!
+                        if AutoBuyAll then
+                            setStatus("Đang Mua Tất Cả (Auto Buy ALL)...")
+                            triggerPrompt(prompt)
+                        else
+                            local model = prompt.Parent
                             local itemRarity = "Unknown"
                             local itemForm = "Normal"
 
-                            -- Check attributes
-                            if model:GetAttribute("Rarity") then itemRarity = tostring(model:GetAttribute("Rarity")) end
-                            if model:GetAttribute("Form") then itemForm = tostring(model:GetAttribute("Form")) end
+                            if model then
+                                local modelName = model:GetFullName()
+                                local modelSimpleName = model.Name
 
-                            -- Inspect text inside model/gui
-                            for _, desc in pairs(model:GetDescendants()) do
-                                if desc:IsA("TextLabel") and desc.Text ~= "" then
-                                    local txt = desc.Text
-                                    for rName, _ in pairs(SelectedRarities) do
-                                        if string.find(string.lower(txt), string.lower(rName)) then itemRarity = rName end
+                                -- Attribute check
+                                if model:GetAttribute("Rarity") then itemRarity = tostring(model:GetAttribute("Rarity")) end
+                                if model:GetAttribute("Form") then itemForm = tostring(model:GetAttribute("Form")) end
+
+                                -- TextLabel check
+                                for _, desc in pairs(model:GetDescendants()) do
+                                    if desc:IsA("TextLabel") and desc.Text ~= "" then
+                                        local txt = desc.Text
+                                        for _, rName in ipairs(ALL_RARITIES) do
+                                            if string.find(string.lower(txt), string.lower(rName)) then itemRarity = rName end
+                                        end
+                                        for _, fName in ipairs(ALL_FORMS) do
+                                            if string.find(string.lower(txt), string.lower(fName)) then itemForm = fName end
+                                        end
                                     end
-                                    for fName, _ in pairs(SelectedForms) do
-                                        if string.find(string.lower(txt), string.lower(fName)) then itemForm = fName end
-                                    end
+                                end
+
+                                -- Simple Name check
+                                for _, fName in ipairs(ALL_FORMS) do
+                                    if string.find(string.lower(modelSimpleName), string.lower(fName)) then itemForm = fName end
                                 end
                             end
 
-                            -- Inspect Name for Form keywords
-                            for fName, _ in pairs(SelectedForms) do
-                                if string.find(string.lower(modelSimpleName), string.lower(fName)) or string.find(string.lower(modelName), string.lower(fName)) then
-                                    itemForm = fName
-                                end
-                            end
-
-                            -- Check match against Filter Mode
+                            -- Match logic
                             local rarityMatched = SelectedRarities[itemRarity] or SelectedRarities["Unknown"]
-                            local formMatched = SelectedForms[itemForm]
+                            local formMatched = SelectedForms[itemForm] or SelectedForms["Normal"]
 
                             local shouldBuy = false
                             if FilterMode == "BOTH" then
@@ -580,12 +598,9 @@ task.spawn(function()
                             end
 
                             if shouldBuy then
-                                setStatus("Đang mua: " .. itemForm .. " " .. itemRarity .. "...")
+                                setStatus("Đã gửi lệnh Mua: " .. itemForm .. " " .. itemRarity .. "...")
                                 triggerPrompt(prompt)
                             end
-                        else
-                            -- Fallback buy
-                            triggerPrompt(prompt)
                         end
                     end
                 end
@@ -629,4 +644,4 @@ LocalPlayer.Idled:Connect(function()
     end
 end)
 
-setStatus("Đã khởi tạo Hub thành công!")
+setStatus("Đã khởi tạo Hub V6 - Đã bật sẵn TẤT CẢ Độ Hiếm!")

@@ -1,7 +1,6 @@
 --[[
-    🔍 GREEDY BRAINROTS - GAME SPY V3
-    Tự động copy vào clipboard + hiển thị TextBox trên màn hình.
-    Bấm nút [COPY] trên GUI -> rồi Ctrl+V dán kết quả!
+    🔍 GREEDY BRAINROTS - GAME SPY V4
+    Lưu file txt vào thư mục Download trên LDPlayer/Android
 --]]
 
 local output = {}
@@ -23,7 +22,7 @@ end
 
 log("")
 
--- 2. Scan Workspace top-level
+-- 2. Workspace top-level
 log("== WORKSPACE TOP-LEVEL ==")
 for _, child in pairs(workspace:GetChildren()) do
     local count = 0
@@ -33,18 +32,27 @@ end
 
 log("")
 
--- 3. Deeper scan of important-looking folders
+-- 3. Deeper scan
 log("== WORKSPACE DEEPER SCAN ==")
 for _, child in pairs(workspace:GetChildren()) do
     if child:IsA("Folder") or child:IsA("Model") then
         local cName = string.lower(child.Name)
-        if string.find(cName, "plot") or string.find(cName, "shop") or string.find(cName, "sell") 
+        if string.find(cName, "plot") or string.find(cName, "shop") or string.find(cName, "sell")
            or string.find(cName, "river") or string.find(cName, "water") or string.find(cName, "brainrot")
            or string.find(cName, "item") or string.find(cName, "drop") or string.find(cName, "coin")
-           or string.find(cName, "spawn") or string.find(cName, "collect") or string.find(cName, "buy") then
-            log("  >> [" .. child.ClassName .. "] " .. child.Name)
+           or string.find(cName, "spawn") or string.find(cName, "collect") or string.find(cName, "buy")
+           or string.find(cName, "conveyor") or string.find(cName, "zone") or string.find(cName, "pad") then
+            log(">> [" .. child.ClassName .. "] " .. child.Name)
             for _, sub in pairs(child:GetChildren()) do
-                log("     [" .. sub.ClassName .. "] " .. sub.Name)
+                log("   [" .. sub.ClassName .. "] " .. sub.Name)
+                -- Go one level deeper
+                pcall(function()
+                    for _, sub2 in pairs(sub:GetChildren()) do
+                        if sub2:IsA("RemoteEvent") or sub2:IsA("ProximityPrompt") or sub2:IsA("ClickDetector") or sub2:IsA("StringValue") then
+                            log("      [" .. sub2.ClassName .. "] " .. sub2.Name)
+                        end
+                    end
+                end)
             end
         end
     end
@@ -52,7 +60,7 @@ end
 
 log("")
 
--- 4. Scan ProximityPrompts
+-- 4. ProximityPrompts
 log("== PROXIMITY PROMPTS ==")
 local promptCount = 0
 for _, prompt in pairs(workspace:GetDescendants()) do
@@ -67,7 +75,7 @@ if promptCount == 0 then log("(Khong co ProximityPrompt)") end
 
 log("")
 
--- 5. Scan Backpack
+-- 5. Backpack
 log("== PLAYER BACKPACK ==")
 local player = game.Players.LocalPlayer
 if player then
@@ -99,29 +107,58 @@ if cdCount == 0 then log("(Khong co ClickDetector)") end
 
 log("")
 log("== SPY XONG ==")
+log("Hay thu bam MUA / TRONG / BAN 1 lan trong game.")
+log("Ket qua Remote se duoc ghi them vao file.")
 
 local fullOutput = table.concat(output, "\n")
 
--- Auto copy to clipboard
-pcall(function()
-    if setclipboard then
-        setclipboard(fullOutput)
-        log("DA TU DONG COPY VAO CLIPBOARD! Hay Ctrl+V dan ket qua.")
-    elseif toclipboard then
-        toclipboard(fullOutput)
-        log("DA TU DONG COPY VAO CLIPBOARD!")
+-- ═══════════════════════════════════════════════════════════
+-- LƯU FILE VÀO DOWNLOAD (THỬ TẤT CẢ CÁC ĐƯỜNG DẪN)
+-- ═══════════════════════════════════════════════════════════
+
+local savedPath = "unknown"
+
+-- Thử tất cả các đường dẫn có thể để lưu vào Download
+local pathsToTry = {
+    -- Relative paths from Delta workspace
+    "../Download/GreedyBrainrotsSpy.txt",
+    "../../Download/GreedyBrainrotsSpy.txt",
+    "../../../Download/GreedyBrainrotsSpy.txt",
+    -- Default Delta workspace
+    "GreedyBrainrotsSpy.txt",
+}
+
+for _, path in ipairs(pathsToTry) do
+    local ok = pcall(function()
+        writefile(path, fullOutput)
+    end)
+    if ok then
+        savedPath = path
+        print("DA LUU THANH CONG TAI: " .. path)
     end
+end
+
+-- Also try absolute Android paths
+pcall(function()
+    local absPath = "/storage/emulated/0/Download/GreedyBrainrotsSpy.txt"
+    writefile(absPath, fullOutput)
+    savedPath = absPath
+    print("DA LUU THANH CONG TAI: " .. absPath)
 end)
 
--- Save to file
 pcall(function()
-    if writefile then
-        writefile("GreedyBrainrotsSpy.txt", fullOutput)
-    end
+    local absPath = "/sdcard/Download/GreedyBrainrotsSpy.txt"
+    writefile(absPath, fullOutput)
+    savedPath = absPath
+    print("DA LUU THANH CONG TAI: " .. absPath)
 end)
 
--- Hook Remote Spy
+-- ═══════════════════════════════════════════════════════════
+-- HOOK REMOTE SPY (Ghi lại khi người chơi bấm MUA/TRỒNG/BÁN)
+-- ═══════════════════════════════════════════════════════════
+
 local spyLines = {}
+
 pcall(function()
     if hookmetamethod then
         local oldNc
@@ -134,13 +171,26 @@ pcall(function()
                 local line = "[REMOTE] " .. method .. " -> " .. self:GetFullName() .. " | Args: (" .. argsStr .. ")"
                 print(line)
                 table.insert(spyLines, line)
+                
+                -- Ghi thêm vào file mỗi khi có Remote mới
+                pcall(function()
+                    local newContent = fullOutput .. "\n\n== REMOTE SPY LOG ==\n" .. table.concat(spyLines, "\n")
+                    for _, path in ipairs(pathsToTry) do
+                        pcall(function() writefile(path, newContent) end)
+                    end
+                    pcall(function() writefile("/storage/emulated/0/Download/GreedyBrainrotsSpy.txt", newContent) end)
+                    pcall(function() writefile("/sdcard/Download/GreedyBrainrotsSpy.txt", newContent) end)
+                end)
             end
             return oldNc(self, ...)
         end)
     end
 end)
 
--- GUI with TextBox + Copy button
+-- ═══════════════════════════════════════════════════════════
+-- HIỂN THỊ GUI THÔNG BÁO
+-- ═══════════════════════════════════════════════════════════
+
 pcall(function()
     if game:GetService("CoreGui"):FindFirstChild("SpyOutputGui") then
         game:GetService("CoreGui").SpyOutputGui:Destroy()
@@ -153,8 +203,8 @@ pcall(function()
     if not sg.Parent then sg.Parent = player.PlayerGui end
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0.55, 0, 0.8, 0)
-    frame.Position = UDim2.new(0.22, 0, 0.1, 0)
+    frame.Size = UDim2.new(0, 350, 0, 140)
+    frame.Position = UDim2.new(0.5, -175, 0, 10)
     frame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
     frame.Active = true
     frame.Draggable = true
@@ -166,56 +216,67 @@ pcall(function()
 
     local stroke = Instance.new("UIStroke")
     stroke.Color = Color3.fromRGB(0, 255, 170)
-    stroke.Thickness = 1.5
+    stroke.Thickness = 2
     stroke.Parent = frame
 
-    -- Title
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(0.5, 0, 0, 30)
-    title.Position = UDim2.new(0, 10, 0, 2)
+    title.Size = UDim2.new(1, -40, 0, 30)
+    title.Position = UDim2.new(0, 10, 0, 5)
     title.BackgroundTransparency = 1
-    title.Text = "🔍 SPY OUTPUT"
+    title.Text = "🔍 SPY DA CHAY XONG!"
     title.TextColor3 = Color3.fromRGB(0, 255, 170)
-    title.TextSize = 14
+    title.TextSize = 16
     title.Font = Enum.Font.SourceSansBold
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.Parent = frame
 
-    -- COPY button (green)
-    local copyBtn = Instance.new("TextButton")
-    copyBtn.Size = UDim2.new(0, 120, 0, 26)
-    copyBtn.Position = UDim2.new(0.5, -60, 0, 3)
-    copyBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-    copyBtn.Text = "📋 COPY KET QUA"
-    copyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    copyBtn.Font = Enum.Font.SourceSansBold
-    copyBtn.TextSize = 12
-    copyBtn.Parent = frame
+    local info1 = Instance.new("TextLabel")
+    info1.Size = UDim2.new(1, -20, 0, 22)
+    info1.Position = UDim2.new(0, 10, 0, 35)
+    info1.BackgroundTransparency = 1
+    info1.Text = "✅ File da luu: GreedyBrainrotsSpy.txt"
+    info1.TextColor3 = Color3.fromRGB(200, 200, 220)
+    info1.TextSize = 13
+    info1.Font = Enum.Font.SourceSans
+    info1.TextXAlignment = Enum.TextXAlignment.Left
+    info1.Parent = frame
 
-    local copyCorner = Instance.new("UICorner")
-    copyCorner.CornerRadius = UDim.new(0, 6)
-    copyCorner.Parent = copyBtn
+    local info2 = Instance.new("TextLabel")
+    info2.Size = UDim2.new(1, -20, 0, 22)
+    info2.Position = UDim2.new(0, 10, 0, 55)
+    info2.BackgroundTransparency = 1
+    info2.Text = "📂 Kiem tra thu muc: Download va Delta"
+    info2.TextColor3 = Color3.fromRGB(200, 200, 220)
+    info2.TextSize = 13
+    info2.Font = Enum.Font.SourceSans
+    info2.TextXAlignment = Enum.TextXAlignment.Left
+    info2.Parent = frame
 
-    copyBtn.MouseButton1Click:Connect(function()
-        local all = fullOutput
-        if #spyLines > 0 then
-            all = all .. "\n\n== REMOTE SPY LOG ==\n" .. table.concat(spyLines, "\n")
-        end
-        pcall(function()
-            if setclipboard then setclipboard(all)
-            elseif toclipboard then toclipboard(all) end
-        end)
-        copyBtn.Text = "✅ DA COPY!"
-        copyBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 80)
-        task.wait(2)
-        copyBtn.Text = "📋 COPY KET QUA"
-        copyBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-    end)
+    local info3 = Instance.new("TextLabel")
+    info3.Size = UDim2.new(1, -20, 0, 22)
+    info3.Position = UDim2.new(0, 10, 0, 75)
+    info3.BackgroundTransparency = 1
+    info3.Text = "👆 Bay gio hay bam MUA / TRONG / BAN 1 lan"
+    info3.TextColor3 = Color3.fromRGB(255, 200, 100)
+    info3.TextSize = 13
+    info3.Font = Enum.Font.SourceSansBold
+    info3.TextXAlignment = Enum.TextXAlignment.Left
+    info3.Parent = frame
 
-    -- Close button
+    local info4 = Instance.new("TextLabel")
+    info4.Size = UDim2.new(1, -20, 0, 22)
+    info4.Position = UDim2.new(0, 10, 0, 95)
+    info4.BackgroundTransparency = 1
+    info4.Text = "roi vao Download mo file txt gui cho dev!"
+    info4.TextColor3 = Color3.fromRGB(255, 200, 100)
+    info4.TextSize = 13
+    info4.Font = Enum.Font.SourceSansBold
+    info4.TextXAlignment = Enum.TextXAlignment.Left
+    info4.Parent = frame
+
     local closeBtn = Instance.new("TextButton")
     closeBtn.Size = UDim2.new(0, 24, 0, 24)
-    closeBtn.Position = UDim2.new(1, -28, 0, 4)
+    closeBtn.Position = UDim2.new(1, -28, 0, 5)
     closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
     closeBtn.Text = "X"
     closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -228,25 +289,4 @@ pcall(function()
     clCorner.Parent = closeBtn
 
     closeBtn.MouseButton1Click:Connect(function() sg:Destroy() end)
-
-    -- TextBox
-    local textBox = Instance.new("TextBox")
-    textBox.Size = UDim2.new(1, -20, 1, -40)
-    textBox.Position = UDim2.new(0, 10, 0, 35)
-    textBox.BackgroundColor3 = Color3.fromRGB(10, 10, 18)
-    textBox.Text = fullOutput
-    textBox.TextColor3 = Color3.fromRGB(200, 200, 220)
-    textBox.TextSize = 11
-    textBox.Font = Enum.Font.Code
-    textBox.TextXAlignment = Enum.TextXAlignment.Left
-    textBox.TextYAlignment = Enum.TextYAlignment.Top
-    textBox.TextWrapped = true
-    textBox.MultiLine = true
-    textBox.ClearTextOnFocus = false
-    textBox.TextEditable = false
-    textBox.Parent = frame
-
-    local tbCorner = Instance.new("UICorner")
-    tbCorner.CornerRadius = UDim.new(0, 8)
-    tbCorner.Parent = textBox
 end)

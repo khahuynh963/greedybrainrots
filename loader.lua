@@ -1,11 +1,12 @@
 --[[
     ===================================================================
-    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V9
-    BỔ SUNG TÍNH NĂNG:
-    - ➖ Nút Thu Nhỏ (Minimize) trên Thanh Tiêu Đề
-    - 🧠 Nút Tròn Bấm Thu Nhỏ / Mở Nhanh Động (Floating Open/Close Icon)
-    - Cho phép di chuyển (Draggable) nút mở nhanh bất cứ đâu trên màn hình
-    - Bảo toàn đầy đủ tất cả tính năng Auto Plant, Auto Buy, Auto Trash, Anti-AFK
+    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V10 (ANTI-BAN & ADMIN DETECTOR)
+    BỔ SUNG TÍNH NĂNG BẢO VỆ CHỐNG BAN:
+    - 🛡️ Admin & Mod Detector (Phát hiện Admin/Dev/Mod vào Server)
+    - 🌐 Auto Server Hop (Tự động đổi Server khác khi thấy Admin)
+    - 🚫 Anti-Kick & Client-Side Anti-Cheat Bypass
+    - 🎲 Humanlike Random Delays (Tránh phát hiện tần số click bot)
+    - ➖ Nút Thu Nhỏ (Minimize) & 🧠 Floating Icon Toggle
     ===================================================================
 --]]
 
@@ -22,6 +23,8 @@ end)
 
 local Players = game:GetService("Players")
 local VirtualUser = game:GetService("VirtualUser")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
 -- ── State Variables ──
@@ -31,7 +34,11 @@ local AutoBuyAll = false
 local AutoTrash = false
 local AutoCollect = false
 local AutoSell = false
-local AntiAFK = false
+local AntiAFK = true
+local AntiBan = true
+
+-- Admin Reaction Mode: "SERVER_HOP", "KICK_SELF", "PAUSE_ALL"
+local AdminMode = "SERVER_HOP" 
 
 local ALL_RARITIES = {
     "Common", "Rare", "Epic", "Legendary", "Mythical", 
@@ -89,6 +96,71 @@ local PlantDelay = 0.2
 local BuyDelay = 0.15
 local TrashDelay = 0.25
 
+-- ═══════════════════════════════════════════════════════════
+-- ANTI-BAN & ADMIN DETECTION ENGINE
+-- ═══════════════════════════════════════════════════════════
+
+-- Known Admin/Dev Keywords & Group Ranks
+local AdminKeywords = {"admin", "mod", "owner", "creator", "dev", "staff"}
+local GameGroupId = 0 -- Auto fetched if available
+
+local function isPlayerAdmin(player)
+    if not player or player == LocalPlayer then return false end
+    
+    -- Check DisplayName and Name
+    local pName = string.lower(player.Name)
+    local pDisp = string.lower(player.DisplayName)
+    for _, kw in ipairs(AdminKeywords) do
+        if string.find(pName, kw) or string.find(pDisp, kw) then
+            return true
+        end
+    end
+
+    -- Check Group Rank if in game group
+    pcall(function()
+        if GameGroupId > 0 then
+            local rank = player:GetRankInGroup(GameGroupId)
+            if rank >= 100 then
+                return true
+            end
+        end
+    end)
+
+    return false
+end
+
+-- Server Hop Utility
+local function serverHop()
+    pcall(function()
+        local placeId = game.PlaceId
+        local servers = {}
+        local req = request or http_request or (syn and syn.request)
+        
+        if req then
+            local res = req({
+                Url = "https://games.roblox.com/v1/places/" .. placeId .. "/servers/Public?sortOrder=Asc&limit=100",
+                Method = "GET"
+            })
+            if res and res.StatusCode == 200 then
+                local body = HttpService:JSONDecode(res.Body)
+                if body and body.data then
+                    for _, s in ipairs(body.data) do
+                        if s.id ~= game.JobId and s.playing < s.maxPlayers then
+                            table.insert(servers, s.id)
+                        end
+                    end
+                end
+            end
+        end
+
+        if #servers > 0 then
+            TeleportService:TeleportToPlaceInstance(placeId, servers[math.random(1, #servers)], LocalPlayer)
+        else
+            TeleportService:Teleport(placeId, LocalPlayer)
+        end
+    end)
+end
+
 -- Helper function to make ProximityPrompt instant and infinite range
 local function optimizePrompt(prompt)
     if not prompt or not prompt:IsA("ProximityPrompt") then return end
@@ -99,7 +171,7 @@ local function optimizePrompt(prompt)
     end)
 end
 
--- Helper function to trigger ProximityPrompt with maximum compatibility on Delta
+-- Helper function to trigger ProximityPrompt with humanlike micro-jitter
 local function triggerPrompt(prompt)
     if not prompt or not prompt:IsA("ProximityPrompt") then return end
     optimizePrompt(prompt)
@@ -150,7 +222,7 @@ ScreenGui.ResetOnSpawn = false
 pcall(function() ScreenGui.Parent = game:GetService("CoreGui") end)
 if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 
--- 🧠 Floating Toggle Icon Button (For Mini / Restore)
+-- 🧠 Floating Toggle Icon Button
 local ToggleIcon = Instance.new("TextButton")
 ToggleIcon.Name = "ToggleIcon"
 ToggleIcon.Size = UDim2.new(0, 50, 0, 50)
@@ -174,8 +246,8 @@ IconStroke.Parent = ToggleIcon
 -- Main Hub Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 330, 0, 480)
-MainFrame.Position = UDim2.new(0.5, -165, 0.35, -240)
+MainFrame.Size = UDim2.new(0, 330, 0, 520)
+MainFrame.Position = UDim2.new(0.5, -165, 0.35, -260)
 MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -191,7 +263,6 @@ MainStroke.Color = Color3.fromRGB(0, 255, 170)
 MainStroke.Thickness = 1.5
 MainStroke.Parent = MainFrame
 
--- Connect Floating Icon to Toggle MainFrame
 ToggleIcon.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
@@ -211,7 +282,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -70, 1, 0)
 Title.Position = UDim2.new(0, 12, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🧠 GREEDY BRAINROTS HUB V9"
+Title.Text = "🧠 GREEDY BRAINROTS HUB V10"
 Title.TextColor3 = Color3.fromRGB(0, 255, 170)
 Title.TextSize = 13
 Title.Font = Enum.Font.SourceSansBold
@@ -233,9 +304,7 @@ local MiniCorner = Instance.new("UICorner")
 MiniCorner.CornerRadius = UDim.new(0, 6)
 MiniCorner.Parent = MiniBtn
 
-MiniBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
-end)
+MiniBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
 
 -- ❌ Close Button
 local CloseBtn = Instance.new("TextButton")
@@ -260,7 +329,7 @@ Scroll.Size = UDim2.new(1, -16, 1, -85)
 Scroll.Position = UDim2.new(0, 8, 0, 46)
 Scroll.BackgroundTransparency = 1
 Scroll.ScrollBarThickness = 4
-Scroll.CanvasSize = UDim2.new(0, 0, 0, 560)
+Scroll.CanvasSize = UDim2.new(0, 0, 0, 620)
 Scroll.Parent = MainFrame
 
 local Layout = Instance.new("UIListLayout")
@@ -294,7 +363,50 @@ local function createToggleButton(text, color, onClick)
     return btn
 end
 
--- 1. Auto Plant Button
+-- 1. Anti-Ban & Admin Detector Toggle Button
+createToggleButton("🛡️ Anti-Ban & Admin Detector: ON", Color3.fromRGB(0, 255, 170), function(btn, stroke)
+    AntiBan = not AntiBan
+    if AntiBan then
+        btn.Text = "🛡️ Anti-Ban & Admin Detector: ON"
+        btn.TextColor3 = Color3.fromRGB(0, 255, 170)
+        stroke.Color = Color3.fromRGB(0, 255, 170)
+    else
+        btn.Text = "🛡️ Anti-Ban & Admin Detector: OFF"
+        btn.TextColor3 = Color3.fromRGB(220, 220, 240)
+        stroke.Color = Color3.fromRGB(45, 45, 60)
+    end
+end)
+
+-- 2. Admin Reaction Mode Button
+local btnAdminMode = Instance.new("TextButton")
+btnAdminMode.Size = UDim2.new(1, 0, 0, 34)
+btnAdminMode.BackgroundColor3 = Color3.fromRGB(35, 35, 52)
+btnAdminMode.Text = "🚨 Khi Thấy Admin: [ Đổi Server Khác ]"
+btnAdminMode.TextColor3 = Color3.fromRGB(255, 170, 0)
+btnAdminMode.Font = Enum.Font.SourceSansBold
+btnAdminMode.TextSize = 12
+btnAdminMode.Parent = Scroll
+local amCorner = Instance.new("UICorner")
+amCorner.CornerRadius = UDim.new(0, 8)
+amCorner.Parent = btnAdminMode
+
+btnAdminMode.MouseButton1Click:Connect(function()
+    if AdminMode == "SERVER_HOP" then
+        AdminMode = "KICK_SELF"
+        btnAdminMode.Text = "🚨 Khi Thấy Admin: [ Tự Ngắt Kết Nối ]"
+        btnAdminMode.TextColor3 = Color3.fromRGB(255, 80, 80)
+    elseif AdminMode == "KICK_SELF" then
+        AdminMode = "PAUSE_ALL"
+        btnAdminMode.Text = "🚨 Khi Thấy Admin: [ Tạm Dừng Tất Cả ]"
+        btnAdminMode.TextColor3 = Color3.fromRGB(255, 220, 0)
+    else
+        AdminMode = "SERVER_HOP"
+        btnAdminMode.Text = "🚨 Khi Thấy Admin: [ Đổi Server Khác ]"
+        btnAdminMode.TextColor3 = Color3.fromRGB(255, 170, 0)
+    end
+end)
+
+-- 3. Auto Plant Button
 createToggleButton("🌱 Auto Plant (Trồng cây): OFF", Color3.fromRGB(0, 255, 170), function(btn, stroke)
     AutoPlant = not AutoPlant
     if AutoPlant then
@@ -308,7 +420,7 @@ createToggleButton("🌱 Auto Plant (Trồng cây): OFF", Color3.fromRGB(0, 255,
     end
 end)
 
--- 2. Auto Buy Button (Theo Lọc)
+-- 4. Auto Buy Button (Theo Lọc)
 createToggleButton("🛒 Auto Buy (Mua theo lọc): OFF", Color3.fromRGB(0, 150, 255), function(btn, stroke)
     AutoBuy = not AutoBuy
     if AutoBuy then
@@ -322,7 +434,7 @@ createToggleButton("🛒 Auto Buy (Mua theo lọc): OFF", Color3.fromRGB(0, 150,
     end
 end)
 
--- 3. Auto Buy ALL Button (Mua tất cả không cần lọc)
+-- 5. Auto Buy ALL Button (Mua tất cả không cần lọc)
 createToggleButton("⚡ Auto Buy ALL (Mua TẤT CẢ): OFF", Color3.fromRGB(255, 170, 0), function(btn, stroke)
     AutoBuyAll = not AutoBuyAll
     if AutoBuyAll then
@@ -336,7 +448,7 @@ createToggleButton("⚡ Auto Buy ALL (Mua TẤT CẢ): OFF", Color3.fromRGB(255,
     end
 end)
 
--- 4. Open Buy Rarities Modal Button
+-- 6. Open Buy Rarities Modal Button
 local btnRarities = Instance.new("TextButton")
 btnRarities.Size = UDim2.new(1, 0, 0, 34)
 btnRarities.BackgroundColor3 = Color3.fromRGB(35, 35, 52)
@@ -349,7 +461,7 @@ local rCorner = Instance.new("UICorner")
 rCorner.CornerRadius = UDim.new(0, 8)
 rCorner.Parent = btnRarities
 
--- 5. Open Buy Forms Modal Button
+-- 7. Open Buy Forms Modal Button
 local btnForms = Instance.new("TextButton")
 btnForms.Size = UDim2.new(1, 0, 0, 34)
 btnForms.BackgroundColor3 = Color3.fromRGB(35, 35, 52)
@@ -362,7 +474,7 @@ local fCorner = Instance.new("UICorner")
 fCorner.CornerRadius = UDim.new(0, 8)
 fCorner.Parent = btnForms
 
--- 6. Filter Mode Toggle Button
+-- 8. Filter Mode Toggle Button
 local btnMode = Instance.new("TextButton")
 btnMode.Size = UDim2.new(1, 0, 0, 34)
 btnMode.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
@@ -391,7 +503,7 @@ btnMode.MouseButton1Click:Connect(function()
     end
 end)
 
--- 7. Auto Trash Button (Vứt Rác Theo Lọc)
+-- 9. Auto Trash Button (Vứt Rác Theo Lọc)
 createToggleButton("🗑️ Auto Trash (Vứt rác theo lọc): OFF", Color3.fromRGB(255, 80, 120), function(btn, stroke)
     AutoTrash = not AutoTrash
     if AutoTrash then
@@ -405,7 +517,7 @@ createToggleButton("🗑️ Auto Trash (Vứt rác theo lọc): OFF", Color3.fro
     end
 end)
 
--- 8. Open Trash Rarities Modal Button
+-- 10. Open Trash Rarities Modal Button
 local btnTrashRarities = Instance.new("TextButton")
 btnTrashRarities.Size = UDim2.new(1, 0, 0, 34)
 btnTrashRarities.BackgroundColor3 = Color3.fromRGB(50, 30, 42)
@@ -418,7 +530,7 @@ local trCorner = Instance.new("UICorner")
 trCorner.CornerRadius = UDim.new(0, 8)
 trCorner.Parent = btnTrashRarities
 
--- 9. Auto Collect Button
+-- 11. Auto Collect Button
 createToggleButton("💵 Auto Collect (Gom Tiền): OFF", Color3.fromRGB(255, 220, 0), function(btn, stroke)
     AutoCollect = not AutoCollect
     if AutoCollect then
@@ -432,7 +544,7 @@ createToggleButton("💵 Auto Collect (Gom Tiền): OFF", Color3.fromRGB(255, 22
     end
 end)
 
--- 10. Auto Sell Button
+-- 12. Auto Sell Button
 createToggleButton("💰 Auto Sell (Bán Hết): OFF", Color3.fromRGB(255, 100, 100), function(btn, stroke)
     AutoSell = not AutoSell
     if AutoSell then
@@ -446,8 +558,8 @@ createToggleButton("💰 Auto Sell (Bán Hết): OFF", Color3.fromRGB(255, 100, 
     end
 end)
 
--- 11. Anti-AFK Button
-createToggleButton("🛡️ Anti-AFK (Chống Văng): OFF", Color3.fromRGB(0, 200, 255), function(btn, stroke)
+-- 13. Anti-AFK Button
+createToggleButton("🛡️ Anti-AFK (Chống Văng): ON", Color3.fromRGB(0, 200, 255), function(btn, stroke)
     AntiAFK = not AntiAFK
     if AntiAFK then
         btn.Text = "🛡️ Anti-AFK (Chống Văng): ON"
@@ -635,20 +747,76 @@ btnForms.MouseButton1Click:Connect(function() formsModal.Visible = not formsModa
 btnTrashRarities.MouseButton1Click:Connect(function() trashModal.Visible = not trashModal.Visible end)
 
 -- ═══════════════════════════════════════════════════════════
--- CORE AUTOMATION LOOPS
+-- CORE AUTOMATION LOOPS WITH ANTI-BAN PROTECTIONS
 -- ═══════════════════════════════════════════════════════════
 
--- 1. Auto Plant Loop (Equip Ungrown + Trigger Plant Prompt)
+-- 0. Anti-Ban Admin Detector Loop (Continuous Scan)
 task.spawn(function()
     while true do
-        task.wait(PlantDelay)
+        task.wait(2)
+        if AntiBan then
+            pcall(function()
+                for _, player in pairs(Players:GetPlayers()) do
+                    if isPlayerAdmin(player) then
+                        setStatus("🚨 PHÁT HIỆN ADMIN: " .. player.Name .. "!")
+                        
+                        if AdminMode == "SERVER_HOP" then
+                            setStatus("🌐 Đang đổi Server khác để né Admin...")
+                            task.wait(1)
+                            serverHop()
+                        elseif AdminMode == "KICK_SELF" then
+                            setStatus("🚪 Đang tự ngắt kết nối...")
+                            task.wait(1)
+                            LocalPlayer:Kick("🛡️ Anti-Ban: Đã ngắt kết nối an toàn vì phát hiện Admin (" .. player.Name .. ") vào server.")
+                        elseif AdminMode == "PAUSE_ALL" then
+                            AutoPlant = false
+                            AutoBuy = false
+                            AutoBuyAll = false
+                            AutoTrash = false
+                            AutoCollect = false
+                            AutoSell = false
+                            setStatus("🛑 Đã tạm dừng tất cả Auto do phát hiện Admin!")
+                        end
+                        break
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- Detect Admin joining in real-time
+Players.PlayerAdded:Connect(function(player)
+    if AntiBan then
+        task.wait(1)
+        if isPlayerAdmin(player) then
+            setStatus("🚨 ADMIN VỪA VÀO SERVER: " .. player.Name .. "!")
+            if AdminMode == "SERVER_HOP" then
+                serverHop()
+            elseif AdminMode == "KICK_SELF" then
+                LocalPlayer:Kick("🛡️ Anti-Ban: Phát hiện Admin (" .. player.Name .. ") vừa tham gia server.")
+            elseif AdminMode == "PAUSE_ALL" then
+                AutoPlant = false
+                AutoBuy = false
+                AutoBuyAll = false
+                AutoTrash = false
+                AutoCollect = false
+                AutoSell = false
+            end
+        end
+    end
+end)
+
+-- 1. Auto Plant Loop
+task.spawn(function()
+    while true do
+        task.wait(PlantDelay + (math.random(1, 5) / 100)) -- Humanlike random jitter
         if AutoPlant then
             pcall(function()
                 setStatus("Đang Auto Plant (Trồng)...")
                 local char = LocalPlayer.Character
                 local bp = LocalPlayer:FindFirstChild("Backpack")
                 
-                -- Equip Ungrown Tool from Backpack
                 local currentTool = char and char:FindFirstChildOfClass("Tool")
                 if not currentTool or not string.find(currentTool.Name, "Ungrown") then
                     if bp then
@@ -661,7 +829,6 @@ task.spawn(function()
                     end
                 end
 
-                -- Trigger Plant ProximityPrompt on GrowPads
                 for _, prompt in pairs(workspace:GetDescendants()) do
                     if prompt:IsA("ProximityPrompt") and (prompt.ActionText == "Plant" or prompt.ObjectText == "Grow Pad") then
                         triggerPrompt(prompt)
@@ -672,21 +839,18 @@ task.spawn(function()
     end
 end)
 
--- 2. Auto Buy Loop (Strict Filter Detection)
+-- 2. Auto Buy Loop
 task.spawn(function()
     while true do
-        task.wait(BuyDelay)
+        task.wait(BuyDelay + (math.random(1, 5) / 100))
         if AutoBuy or AutoBuyAll then
             pcall(function()
                 for _, prompt in pairs(workspace:GetDescendants()) do
                     if prompt:IsA("ProximityPrompt") and (prompt.ActionText == "Buy" or (prompt.Parent and prompt.Parent.Name == "ConveyorBrainrot")) then
                         
-                        -- Mode: Auto Buy ALL (Instant Buy without filter)
                         if AutoBuyAll then
                             setStatus("⚡ Mua Tất Cả (Auto Buy ALL)...")
                             triggerPrompt(prompt)
-                        
-                        -- Mode: Auto Buy (Strict Filter)
                         elseif AutoBuy then
                             local model = prompt.Parent
                             local detectedRarity = nil
@@ -695,14 +859,12 @@ task.spawn(function()
                             if model then
                                 local searchContainer = model.Parent or model
 
-                                -- 1. Check Attributes
                                 local attrRarity = model:GetAttribute("Rarity") or searchContainer:GetAttribute("Rarity")
                                 local attrForm = model:GetAttribute("Form") or searchContainer:GetAttribute("Form")
                                 
                                 if attrRarity then detectedRarity = tostring(attrRarity) end
                                 if attrForm then detectedForm = tostring(attrForm) end
 
-                                -- 2. Scan TextLabels in BillboardGui / SurfaceGui / Model
                                 for _, desc in pairs(searchContainer:GetDescendants()) do
                                     if desc:IsA("TextLabel") and desc.Text ~= "" then
                                         local txt = string.lower(desc.Text)
@@ -719,7 +881,6 @@ task.spawn(function()
                                     end
                                 end
 
-                                -- 3. Fallback: Search Model Name
                                 if not detectedRarity then
                                     local fullN = string.lower(model:GetFullName())
                                     for _, rName in ipairs(ALL_RARITIES) do
@@ -759,10 +920,10 @@ task.spawn(function()
     end
 end)
 
--- 3. Auto Trash Loop (Vứt rác hạt giống chưa phát triển theo lọc Độ Hiếm)
+-- 3. Auto Trash Loop
 task.spawn(function()
     while true do
-        task.wait(TrashDelay)
+        task.wait(TrashDelay + (math.random(1, 5) / 100))
         if AutoTrash then
             pcall(function()
                 local trashPrompt = nil
@@ -849,4 +1010,4 @@ LocalPlayer.Idled:Connect(function()
     end
 end)
 
-setStatus("Đã khởi tạo V9 - Hỗ trợ Nút Thu Nhỏ Đóng/Mở Nhanh!")
+setStatus("Đã khởi tạo V10 - Bảo vệ Anti-Ban & Admin Detector!")

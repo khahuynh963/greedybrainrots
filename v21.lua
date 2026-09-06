@@ -1,12 +1,12 @@
 --[[
     ===================================================================
-    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V22 (PERFECT PLOT IDENTIFICATION)
-    - Khắc phục triệt để lỗi "That's another player's plot.":
-      1. Tự động nhận diện chính xác Plot theo Format game: `Plot_<UserId>` (e.g. Plot_10740687536).
-      2. getMyPlot() chỉ trả về duy nhất Plot của LocalPlayer.
-      3. isOtherPlayerPlot() phát hiện & CHẶN 100% tất cả ProximityPrompt thuộc về Plot người chơi khác!
-      4. Auto Plant, Auto Collect, Auto Trash chỉ hoạt động duy nhất bên trong Plot của chính bạn!
-    - Đã kiểm tra thực tế cấu trúc Workspace từ Spy Log!
+    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V21 (ABSOLUTE PLOT PROTECTION)
+    - Bảo vệ tuyệt đối trong triggerPrompt():
+      1. Tự động kiểm tra nguồn gốc của MỌI ProximityPrompt trước khi bấm.
+      2. Nếu Prompt nằm trên Plot / Nhà của người chơi khác -> TỰ ĐỘNG CHẶN 100%!
+      3. Giải quyết triệt để thông báo đỏ "That's another player's plot." cho tất cả tính năng 
+         (Auto Plant, Auto Buy, Auto Sell, Auto Collect, Auto Trash).
+    - Giao diện V21 hiển thị rõ phiên bản, tích hợp nút 🧠 kéo thả mượt mà trên LDPlayer.
     ===================================================================
 --]]
 
@@ -116,139 +116,131 @@ local TrashDelay = 0.3
 local plantStartTime = 0
 
 -- ═══════════════════════════════════════════════════════════
--- 🛡️ EXACT PLOT ENGINE FOR GREEDY BRAINROTS (PLOT_<USERID>)
+-- ABSOLUTE PLOT OWNERSHIP VERIFICATION SYSTEM
 -- ═══════════════════════════════════════════════════════════
 local cachedMyPlot = nil
-
-local function getMyPlot()
-    if cachedMyPlot and cachedMyPlot.Parent then return cachedMyPlot end
-
-    local myIdStr = tostring(LocalPlayer.UserId)
-    local targetPlotName = "Plot_" .. myIdStr
-
-    -- 1. Direct search inside Workspace.Plots.Tycoons
-    pcall(function()
-        local plotsFolder = workspace:FindFirstChild("Plots")
-        if plotsFolder then
-            local tycoons = plotsFolder:FindFirstChild("Tycoons") or plotsFolder:FindFirstChild("PlotSlots")
-            if tycoons then
-                local direct = tycoons:FindFirstChild(targetPlotName)
-                if direct then
-                    cachedMyPlot = direct
-                    return direct
-                end
-                for _, child in pairs(tycoons:GetChildren()) do
-                    if child.Name == targetPlotName or string.find(child.Name, myIdStr) then
-                        cachedMyPlot = child
-                        return child
-                    end
-                end
-            end
-        end
-    end)
-
-    if cachedMyPlot and cachedMyPlot.Parent then return cachedMyPlot end
-
-    -- 2. Search anywhere in workspace for Plot_<myIdStr>
-    pcall(function()
-        for _, child in pairs(workspace:GetDescendants()) do
-            if (child:IsA("Model") or child:IsA("Folder")) and child.Name == targetPlotName then
-                cachedMyPlot = child
-                return child
-            end
-        end
-    end)
-
-    if cachedMyPlot and cachedMyPlot.Parent then return cachedMyPlot end
-
-    -- 3. Fallback scan by Player Name / Attributes / DisplayName
-    local pName = string.lower(LocalPlayer.Name)
-    local pDisp = string.lower(LocalPlayer.DisplayName)
-
-    pcall(function()
-        local plotsFolder = workspace:FindFirstChild("Plots") or workspace
-        for _, child in pairs(plotsFolder:GetDescendants()) do
-            if child:IsA("Model") or child:IsA("Folder") then
-                local cName = string.lower(child.Name)
-                if string.find(cName, pName) or string.find(cName, pDisp) then
-                    cachedMyPlot = child
-                    return child
-                end
-            end
-        end
-    end)
-
-    return cachedMyPlot
-end
 
 local function isOtherPlayerPlot(container)
     if not container or container == workspace then return false end
 
-    local myIdStr = tostring(LocalPlayer.UserId)
-    local current = container
+    local pName = string.lower(LocalPlayer.Name)
+    local pDisp = string.lower(LocalPlayer.DisplayName)
+    local pId = tostring(LocalPlayer.UserId)
 
-    while current and current ~= workspace do
-        local cName = current.Name
-        
-        -- Format check: Plot_<UserId>
-        local plotUserId = string.match(cName, "^Plot_(%d+)")
-        if plotUserId then
-            if plotUserId ~= myIdStr then
-                return true -- BELONGS TO ANOTHER PLAYER!
-            else
-                return false -- BELONGS TO LOCAL PLAYER!
+    for _, otherP in pairs(Players:GetPlayers()) do
+        if otherP ~= LocalPlayer then
+            local oName = string.lower(otherP.Name)
+            local oDisp = string.lower(otherP.DisplayName)
+            local oId = tostring(otherP.UserId)
+
+            -- 1. Check Object Name
+            local cName = string.lower(container.Name)
+            if string.find(cName, oName) or string.find(cName, oDisp) then
+                return true
             end
-        end
 
-        -- Check other player usernames/displaynames/UserIds
-        local pName = string.lower(LocalPlayer.Name)
-        local pDisp = string.lower(LocalPlayer.DisplayName)
-
-        for _, otherP in pairs(Players:GetPlayers()) do
-            if otherP ~= LocalPlayer then
-                local oName = string.lower(otherP.Name)
-                local oDisp = string.lower(otherP.DisplayName)
-                local oId = tostring(otherP.UserId)
-
-                local lowerCName = string.lower(cName)
-                if string.find(lowerCName, oName) or string.find(lowerCName, oDisp) or (string.find(cName, "Plot_") and string.find(cName, oId)) then
-                    return true
+            -- 2. Check Attributes on Container
+            local isOtherAttr = false
+            pcall(function()
+                for attrName, val in pairs(container:GetAttributes()) do
+                    local vStr = string.lower(tostring(val))
+                    if vStr == oName or vStr == oDisp or vStr == oId then
+                        isOtherAttr = true
+                        break
+                    end
                 end
+            end)
+            if isOtherAttr then return true end
 
-                -- Check attributes on container
-                local hasOtherAttr = false
-                pcall(function()
-                    for attrName, val in pairs(current:GetAttributes()) do
-                        local vStr = string.lower(tostring(val))
-                        if vStr == oName or vStr == oDisp or vStr == oId then
-                            hasOtherAttr = true
+            -- 3. Check StringValue / ObjectValue children
+            local isOtherValue = false
+            pcall(function()
+                for _, child in pairs(container:GetChildren()) do
+                    if child:IsA("StringValue") and string.lower(child.Value) == oName then
+                        isOtherValue = true
+                        break
+                    elseif child:IsA("ObjectValue") and child.Value == otherP then
+                        isOtherValue = true
+                        break
+                    end
+                end
+            end)
+            if isOtherValue then return true end
+
+            -- 4. Check TextLabels inside container for ownership signs
+            local isOtherText = false
+            pcall(function()
+                for _, desc in pairs(container:GetDescendants()) do
+                    if desc:IsA("TextLabel") and desc.Text ~= "" then
+                        local txt = string.lower(desc.Text)
+                        if (string.find(txt, oName) or string.find(txt, oDisp)) and not (string.find(txt, pName) or string.find(txt, pDisp)) then
+                            isOtherText = true
                             break
                         end
                     end
-                end)
-                if hasOtherAttr then return true end
-
-                -- Check StringValue / ObjectValue
-                local hasOtherValue = false
-                pcall(function()
-                    for _, child in pairs(current:GetChildren()) do
-                        if child:IsA("StringValue") and (string.lower(child.Value) == oName or string.lower(child.Value) == oDisp) then
-                            hasOtherValue = true
-                            break
-                        elseif child:IsA("ObjectValue") and child.Value == otherP then
-                            hasOtherValue = true
-                            break
-                        end
-                    end
-                end)
-                if hasOtherValue then return true end
-            end
+                end
+            end)
+            if isOtherText then return true end
         end
-
-        current = current.Parent
     end
 
     return false
+end
+
+local function getMyPlot()
+    if cachedMyPlot and cachedMyPlot.Parent then return cachedMyPlot end
+    
+    local pName = string.lower(LocalPlayer.Name)
+    local pDisp = string.lower(LocalPlayer.DisplayName)
+    local pId = tostring(LocalPlayer.UserId)
+    
+    local searchContainers = {
+        workspace:FindFirstChild("Plots"),
+        workspace:FindFirstChild("Bases"),
+        workspace:FindFirstChild("PlotsContainer"),
+        workspace
+    }
+
+    for _, container in ipairs(searchContainers) do
+        if container then
+            for _, child in pairs(container:GetChildren()) do
+                if container ~= workspace or (child:IsA("Model") or child:IsA("Folder")) then
+                    local cName = string.lower(child.Name)
+                    if string.find(cName, pName) or string.find(cName, pDisp) then
+                        cachedMyPlot = child
+                        return child
+                    end
+                    
+                    pcall(function()
+                        for attrName, val in pairs(child:GetAttributes()) do
+                            local vStr = string.lower(tostring(val))
+                            if vStr == pName or vStr == pDisp or vStr == pId then
+                                cachedMyPlot = child
+                                return child
+                            end
+                        end
+                    end)
+                    
+                    pcall(function()
+                        for _, desc in pairs(child:GetDescendants()) do
+                            if desc:IsA("TextLabel") and desc.Text ~= "" then
+                                local txt = string.lower(desc.Text)
+                                if string.find(txt, pName) or string.find(txt, pDisp) then
+                                    cachedMyPlot = child
+                                    return child
+                                end
+                            end
+                            if (desc:IsA("StringValue") or desc:IsA("ObjectValue")) and (tostring(desc.Value) == LocalPlayer.Name or desc.Value == LocalPlayer) then
+                                cachedMyPlot = child
+                                return child
+                            end
+                        end
+                    end)
+                end
+            end
+        end
+    end
+    return nil
 end
 
 -- ═══════════════════════════════════════════════════════════
@@ -348,13 +340,17 @@ local function optimizePrompt(prompt)
     end)
 end
 
--- 🛡️ SAFE TRIGGER PROMPT (ABSOLUTE PLOT REJECTION)
+-- 🛡️ SAFE TRIGGER PROMPT (CHẶN 100% PROMPT TRÊN PLOT NGƯỜI CHƠI KHÁC)
 local function triggerPrompt(prompt)
     if not prompt or not prompt:IsA("ProximityPrompt") then return end
     
-    -- Reject prompt if it is located inside another player's plot
-    if isOtherPlayerPlot(prompt.Parent) then
-        return -- BỎ QUA 100%! Không bao giờ bấm nút thuộc sân người khác
+    -- Kiểm tra từ vị trí Prompt ngược lên cây thư mục
+    local anc = prompt.Parent
+    while anc and anc ~= workspace do
+        if isOtherPlayerPlot(anc) then
+            return -- BỎ QUA NGAY LẬP TỨC! Không bấm nút thuộc sân người khác
+        end
+        anc = anc.Parent
     end
 
     optimizePrompt(prompt)
@@ -535,7 +531,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -70, 1, 0)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🍱 BRAINROTS HUB V22 (PERFECT PLOT FIX)"
+Title.Text = "🍱 BRAINROTS HUB V21 (ABSOLUTE PLOT FIX)"
 Title.TextColor3 = Color3.fromRGB(0, 255, 170)
 Title.TextSize = 10
 Title.Font = Enum.Font.SourceSansBold
@@ -939,7 +935,7 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(1, -16, 1, 0)
 StatusLabel.Position = UDim2.new(0, 8, 0, 0)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "Trạng thái: Sẵn sàng V22. (Bấm 🧠 để Bật/Tắt Menu)"
+StatusLabel.Text = "Trạng thái: Sẵn sàng V21. (Bấm 🧠 để Bật/Tắt Menu)"
 StatusLabel.TextColor3 = Color3.fromRGB(160, 160, 180)
 StatusLabel.TextSize = 10
 StatusLabel.Font = Enum.Font.SourceSans
@@ -1102,21 +1098,19 @@ btnHarvestNow.MouseButton1Click:Connect(function()
     setStatus("🌾 Đang thu hoạch toàn bộ cây...")
     local count = 0
     local myPlot = getMyPlot()
-    if myPlot then
-        for _, prompt in pairs(myPlot:GetDescendants()) do
-            if prompt:IsA("ProximityPrompt") then
-                local act = string.lower(prompt.ActionText or "")
-                local obj = string.lower(prompt.ObjectText or "")
-                if string.find(act, "harvest") or string.find(act, "collect") or string.find(act, "pick") or string.find(act, "take") or string.find(act, "grab") or (string.find(obj, "grow") and not string.find(act, "plant") and not string.find(act, "buy")) then
-                    triggerPrompt(prompt)
-                    count = count + 1
-                end
+    local searchArea = myPlot and myPlot:GetDescendants() or workspace:GetDescendants()
+
+    for _, prompt in pairs(searchArea) do
+        if prompt:IsA("ProximityPrompt") then
+            local act = string.lower(prompt.ActionText or "")
+            local obj = string.lower(prompt.ObjectText or "")
+            if string.find(act, "harvest") or string.find(act, "collect") or string.find(act, "pick") or string.find(act, "take") or string.find(act, "grab") or (string.find(obj, "grow") and not string.find(act, "plant") and not string.find(act, "buy")) then
+                triggerPrompt(prompt)
+                count = count + 1
             end
         end
-        setStatus("🌾 Đã thu hoạch xong (" .. count .. " cây)!")
-    else
-        setStatus("⚠️ Không tìm thấy Plot của bạn!")
     end
+    setStatus("🌾 Đã thu hoạch xong (" .. count .. " cây)!")
 end)
 
 -- ═══════════════════════════════════════════════════════════
@@ -1343,32 +1337,51 @@ end
 -- 🌱 STRICT PLOT PROXIMITY PROMPT FINDER
 -- ═══════════════════════════════════════════════════════════
 local function getGrowPadPrompts(myPlot)
-    myPlot = myPlot or getMyPlot()
-    if not myPlot then return nil, nil, nil end
-
     local plantPrompt = nil
     local harvestPrompt = nil
     local growPad = nil
 
-    for _, desc in pairs(myPlot:GetDescendants()) do
-        if desc:IsA("ProximityPrompt") then
-            local act = string.lower(desc.ActionText or "")
-            local obj = string.lower(desc.ObjectText or "")
+    local searchList = {}
+    if myPlot then table.insert(searchList, myPlot) end
+    table.insert(searchList, workspace)
 
-            if string.find(act, "plant") or string.find(act, "sow") or (string.find(obj, "grow") and not string.find(act, "harvest") and not string.find(act, "collect") and not string.find(act, "buy")) then
-                if not plantPrompt then
-                    plantPrompt = desc
-                    growPad = desc.Parent
+    for _, container in ipairs(searchList) do
+        for _, desc in pairs(container:GetDescendants()) do
+            if desc:IsA("ProximityPrompt") then
+                -- Must pass ownership check
+                local isOther = false
+                local anc = desc.Parent
+                while anc and anc ~= workspace do
+                    if isOtherPlayerPlot(anc) then
+                        isOther = true
+                        break
+                    end
+                    anc = anc.Parent
                 end
-            end
 
-            if string.find(act, "harvest") or string.find(act, "collect") or string.find(act, "pick") or string.find(act, "take") or string.find(act, "grab") or string.find(act, "reap") then
-                if not harvestPrompt then
-                    harvestPrompt = desc
-                    if not growPad then growPad = desc.Parent end
+                if not isOther then
+                    local act = string.lower(desc.ActionText or "")
+                    local obj = string.lower(desc.ObjectText or "")
+
+                    if string.find(act, "plant") or string.find(act, "sow") or string.find(act, "grow") or string.find(obj, "grow") then
+                        if not string.find(act, "harvest") and not string.find(act, "collect") and not string.find(act, "pick") and not string.find(act, "take") and not string.find(act, "grab") and not string.find(act, "buy") then
+                            if not plantPrompt then
+                                plantPrompt = desc
+                                growPad = desc.Parent
+                            end
+                        end
+                    end
+
+                    if string.find(act, "harvest") or string.find(act, "collect") or string.find(act, "pick") or string.find(act, "take") or string.find(act, "grab") or string.find(act, "reap") then
+                        if not harvestPrompt then
+                            harvestPrompt = desc
+                            if not growPad then growPad = desc.Parent end
+                        end
+                    end
                 end
             end
         end
+        if plantPrompt or harvestPrompt then break end
     end
 
     return plantPrompt, harvestPrompt, growPad
@@ -1448,81 +1461,77 @@ task.spawn(function()
     end
 end)
 
--- 2. Auto Buy Loop (Global Conveyor Only, Plot Protected)
+-- 2. Auto Buy Loop
 task.spawn(function()
     while true do
         task.wait(BuyDelay + (math.random(1, 5) / 100))
         if AutoBuy or AutoBuyAll then
             pcall(function()
-                local conveyorFolder = workspace:FindFirstChild("ConveyorOffers") or workspace
-                for _, prompt in pairs(conveyorFolder:GetDescendants()) do
+                for _, prompt in pairs(workspace:GetDescendants()) do
                     if prompt:IsA("ProximityPrompt") and (prompt.ActionText == "Buy" or (prompt.Parent and prompt.Parent.Name == "ConveyorBrainrot")) then
-                        -- Double safety: ignore if prompt is inside any player plot
-                        if not isOtherPlayerPlot(prompt.Parent) then
-                            if AutoBuyAll then
-                                setStatus("⚡ Mua Tất Cả (Auto Buy ALL)...")
-                                triggerPrompt(prompt)
-                            elseif AutoBuy then
-                                local model = prompt.Parent
-                                local detectedRarity = nil
-                                local detectedForm = "Normal"
+                        if AutoBuyAll then
+                            setStatus("⚡ Mua Tất Cả (Auto Buy ALL)...")
+                            triggerPrompt(prompt)
+                        elseif AutoBuy then
+                            local model = prompt.Parent
+                            local detectedRarity = nil
+                            local detectedForm = "Normal"
 
-                                if model then
-                                    local searchContainer = model.Parent or model
+                            if model then
+                                local searchContainer = model.Parent or model
 
-                                    local attrRarity = model:GetAttribute("Rarity") or searchContainer:GetAttribute("Rarity")
-                                    local attrForm = model:GetAttribute("Form") or searchContainer:GetAttribute("Form")
-                                    
-                                    if attrRarity then detectedRarity = tostring(attrRarity) end
-                                    if attrForm then detectedForm = tostring(attrForm) end
+                                local attrRarity = model:GetAttribute("Rarity") or searchContainer:GetAttribute("Rarity")
+                                local attrForm = model:GetAttribute("Form") or searchContainer:GetAttribute("Form")
+                                
+                                if attrRarity then detectedRarity = tostring(attrRarity) end
+                                if attrForm then detectedForm = tostring(attrForm) end
 
-                                    for _, desc in pairs(searchContainer:GetDescendants()) do
-                                        if desc:IsA("TextLabel") and desc.Text ~= "" then
-                                            local txt = string.lower(desc.Text)
-                                            for _, rName in ipairs(ALL_RARITIES) do
-                                                if rName ~= "Unknown" and string.find(txt, string.lower(rName)) then
-                                                    detectedRarity = rName
-                                                end
-                                            end
-                                            for _, fName in ipairs(ALL_FORMS) do
-                                                if fName ~= "Normal" and string.find(txt, string.lower(fName)) then
-                                                    detectedForm = fName
-                                                end
-                                            end
-                                        end
-                                    end
-
-                                    if not detectedRarity then
-                                        local fullN = string.lower(model:GetFullName())
+                                for _, desc in pairs(searchContainer:GetDescendants()) do
+                                    if desc:IsA("TextLabel") and desc.Text ~= "" then
+                                        local txt = string.lower(desc.Text)
                                         for _, rName in ipairs(ALL_RARITIES) do
-                                            if rName ~= "Unknown" and string.find(fullN, string.lower(rName)) then
+                                            if rName ~= "Unknown" and string.find(txt, string.lower(rName)) then
                                                 detectedRarity = rName
                                             end
                                         end
+                                        for _, fName in ipairs(ALL_FORMS) do
+                                            if fName ~= "Normal" and string.find(txt, string.lower(fName)) then
+                                                detectedForm = fName
+                                            end
+                                        end
                                     end
                                 end
 
-                                local finalRarity = detectedRarity or "Unknown"
-                                local finalForm = detectedForm or "Normal"
-
-                                local rarityMatched = (SelectedRarities[finalRarity] == true)
-                                local formMatched = (SelectedForms[finalForm] == true)
-
-                                local shouldBuy = false
-                                if FilterMode == "BOTH" then
-                                    shouldBuy = rarityMatched and formMatched
-                                elseif FilterMode == "RARITY_ONLY" then
-                                    shouldBuy = rarityMatched
-                                elseif FilterMode == "FORM_ONLY" then
-                                    shouldBuy = formMatched
+                                if not detectedRarity then
+                                    local fullN = string.lower(model:GetFullName())
+                                    for _, rName in ipairs(ALL_RARITIES) do
+                                        if rName ~= "Unknown" and string.find(fullN, string.lower(rName)) then
+                                            detectedRarity = rName
+                                        end
+                                    end
                                 end
+                            end
 
-                                if shouldBuy then
-                                    setStatus("🛒 Đang mua: [" .. finalRarity .. "] " .. finalForm .. "...")
-                                    triggerPrompt(prompt)
-                                else
-                                    setStatus("🔍 Đã bỏ qua: [" .. finalRarity .. "] " .. finalForm .. " (Không khớp bộ lọc)")
-                                end
+                            local finalRarity = detectedRarity or "Unknown"
+                            local finalForm = detectedForm or "Normal"
+
+                            local rarityMatched = (SelectedRarities[finalRarity] == true)
+                            local formMatched = (SelectedForms[finalForm] == true)
+
+                            local shouldBuy = false
+                            if FilterMode == "BOTH" then
+                                shouldBuy = rarityMatched and formMatched
+                            elseif FilterMode == "RARITY_ONLY" then
+                                shouldBuy = rarityMatched
+                            elseif FilterMode == "FORM_ONLY" then
+                                shouldBuy = formMatched
+                            end
+
+                            if shouldBuy then
+                                setStatus("🛒 Đang mua: [" .. finalRarity .. "] " .. finalForm .. "...")
+                                triggerPrompt(prompt)
+                            else
+                                setStatus("🔍 Đã bỏ qua: [" .. finalRarity .. "] " .. finalForm .. " (Không khớp bộ lọc)")
                             end
                         end
                     end
@@ -1532,17 +1541,14 @@ task.spawn(function()
     end
 end)
 
--- 3. Auto Trash Loop (My Plot Only)
+-- 3. Auto Trash Loop
 task.spawn(function()
     while true do
         task.wait(TrashDelay + (math.random(1, 5) / 100))
         if AutoTrash then
             pcall(function()
-                local myPlot = getMyPlot()
-                if not myPlot then return end
-
                 local trashPrompt = nil
-                for _, prompt in pairs(myPlot:GetDescendants()) do
+                for _, prompt in pairs(workspace:GetDescendants()) do
                     if prompt:IsA("ProximityPrompt") and (prompt.ActionText == "Trash Brainrot" or (prompt.Parent and string.lower(prompt.Parent.Name) == "trash")) then
                         trashPrompt = prompt
                         break
@@ -1590,29 +1596,27 @@ task.spawn(function()
     end
 end)
 
--- 4. Auto Sell & Collect Loop (My Plot Only)
+-- 4. Auto Sell & Collect Loop
 task.spawn(function()
     while true do
         task.wait(0.5)
-        local myPlot = getMyPlot()
-        if AutoSell and myPlot then
+        if AutoSell then
             pcall(function()
-                for _, prompt in pairs(myPlot:GetDescendants()) do
+                setStatus("Đang bán (Auto Sell)...")
+                for _, prompt in pairs(workspace:GetDescendants()) do
                     if prompt:IsA("ProximityPrompt") and (prompt.ActionText == "Trash Brainrot" or prompt.ActionText == "Sell") then
-                        setStatus("Đang bán (Auto Sell)...")
                         triggerPrompt(prompt)
                     end
                 end
             end)
         end
-        if AutoCollect and myPlot then
+        if AutoCollect then
             pcall(function()
-                for _, prompt in pairs(myPlot:GetDescendants()) do
-                    if prompt:IsA("ProximityPrompt") and (prompt.ActionText == "Claim" or prompt.ActionText == "Collect" or string.find(string.lower(prompt.ActionText or ""), "buy")) then
-                        if prompt.Parent and prompt.Parent.Name == "CollectAllSign" then
-                            setStatus("💵 Đang thu hoạch tiền (Collect All)...")
-                            triggerPrompt(prompt)
-                        end
+                local myPlot = getMyPlot()
+                local searchArea = myPlot and myPlot:GetDescendants() or workspace:GetDescendants()
+                for _, prompt in pairs(searchArea) do
+                    if prompt:IsA("ProximityPrompt") and (prompt.ActionText == "Claim" or prompt.ActionText == "Collect") then
+                        triggerPrompt(prompt)
                     end
                 end
             end)
@@ -1629,4 +1633,4 @@ LocalPlayer.Idled:Connect(function()
     end
 end)
 
-setStatus("Đã khởi tạo V22 - Khắc phục hoàn hảo 100% Plot & Chặn mọi lỗi đỏ!")
+setStatus("Đã khởi tạo V21 - Đã chặn tuyệt đối ProximityPrompt của người chơi khác!")

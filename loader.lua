@@ -1,6 +1,6 @@
 --[[
     ===================================================================
-    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB (V19 FAST LOADER)
+    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB (V20 FAST LOADER)
     ===================================================================
 --]]
 pcall(function()
@@ -13,7 +13,8 @@ pcall(function()
     end
 end)
 
-loadstring(game:HttpGet("https://raw.githubusercontent.com/khahuynh963/greedybrainrots/main/v19.lua?" .. math.random(1, 999999)))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/khahuynh963/greedybrainrots/main/v20.lua?" .. math.random(1, 999999)))()
+
 
 
 

@@ -1,7 +1,9 @@
 --[[
     ===================================================================
     🧠 GREEDY BRAINROTS - UNIVERSAL MULTI-METHOD HUB (DELTA EXECUTOR)
-    Tương thích 100% mọi cơ chế game: ProximityPrompt, Remotes, Touch, Tool
+    - Auto Plant: Tự động cầm Ungrown items trong balo & trồng vào Plot
+    - Auto Buy: Quét BillboardGui & TextLabel trên sông (River/Waterfall)
+    - Mặc định: BẬT TẤT CẢ ĐỘ HIẾM để bấm MUA là mua ngay lập tức!
     ===================================================================
 --]]
 
@@ -67,11 +69,11 @@ local FormsList = {
     "Starfall", "Cosmic"
 }
 
+-- MẶC ĐỊNH: Bật TẤT CẢ các độ hiếm để bấm Auto Buy là tự mua được ngay!
 local SelectedRarities = {}
-for _, r in ipairs(RaritiesList) do SelectedRarities[r] = false end
-SelectedRarities["Mythical"] = true
-SelectedRarities["Secret"] = true
-SelectedRarities["Godly"] = true
+for _, r in ipairs(RaritiesList) do 
+    SelectedRarities[r] = true 
+end
 
 local SelectedForms = {}
 for _, f in ipairs(FormsList) do SelectedForms[f] = false end
@@ -593,12 +595,12 @@ OpenFormsBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ═══════════════════════════════════════════════════════════════════
--- 🛠️ ROBLOX INTERACTION ENGINE (MULTI-METHOD)
+-- 🛠️ ROBLOX INTERACTION ENGINE (GREEDY BRAINROTS SPECIFIC)
 -- ═══════════════════════════════════════════════════════════════════
 
 local function triggerPrompt(obj)
     if not obj then return false end
-    local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
+    local prompt = obj:IsA("ProximityPrompt") and obj or obj:FindFirstChildWhichIsA("ProximityPrompt", true)
     if prompt then
         pcall(function()
             if fireproximityprompt then
@@ -614,36 +616,42 @@ local function triggerPrompt(obj)
     return false
 end
 
+-- Extraction of full text labels / names of item
+local function getItemText(item)
+    local fullText = string.lower(item.Name)
+
+    pcall(function()
+        if item:FindFirstChild("Rarity") then
+            fullText = fullText .. " " .. string.lower(tostring(item.Rarity.Value))
+        end
+        if item:FindFirstChild("Form") then
+            fullText = fullText .. " " .. string.lower(tostring(item.Form.Value))
+        elseif item:FindFirstChild("Mutation") then
+            fullText = fullText .. " " .. string.lower(tostring(item.Mutation.Value))
+        end
+
+        -- Check all BillboardGui text labels (e.g., "Bananita Dolphinita", "Epic", "$73.44K/s")
+        for _, desc in pairs(item:GetDescendants()) do
+            if desc:IsA("TextLabel") or desc:IsA("TextButton") then
+                if desc.Text and #desc.Text > 0 then
+                    fullText = fullText .. " " .. string.lower(desc.Text)
+                end
+            elseif desc:IsA("StringValue") then
+                fullText = fullText .. " " .. string.lower(tostring(desc.Value))
+            end
+        end
+    end)
+
+    return fullText
+end
+
 local function checkItemMatches(item)
-    local itemName = item.Name
-    local itemRarity = ""
-    local itemForm = "Normal"
-
-    if item:FindFirstChild("Rarity") then
-        itemRarity = tostring(item.Rarity.Value)
-    elseif item:GetAttribute("Rarity") then
-        itemRarity = tostring(item:GetAttribute("Rarity"))
-    else
-        itemRarity = itemName
-    end
-
-    if item:FindFirstChild("Form") then
-        itemForm = tostring(item.Form.Value)
-    elseif item:FindFirstChild("Mutation") then
-        itemForm = tostring(item.Mutation.Value)
-    elseif item:GetAttribute("Form") then
-        itemForm = tostring(item:GetAttribute("Form"))
-    elseif item:GetAttribute("Mutation") then
-        itemForm = tostring(item:GetAttribute("Mutation"))
-    else
-        itemForm = "Normal"
-    end
+    local fullText = getItemText(item)
 
     local rarityMatched = false
     for rName, isSelected in pairs(SelectedRarities) do
         if isSelected then
-            if string.find(string.lower(itemRarity), string.lower(rName)) 
-               or string.find(string.lower(itemName), string.lower(rName)) then
+            if string.find(fullText, string.lower(rName)) then
                 rarityMatched = true
                 break
             end
@@ -653,8 +661,7 @@ local function checkItemMatches(item)
     local formMatched = false
     for fName, isSelected in pairs(SelectedForms) do
         if isSelected then
-            if string.find(string.lower(itemForm), string.lower(fName)) 
-               or string.find(string.lower(itemName), string.lower(fName)) then
+            if string.find(fullText, string.lower(fName)) then
                 formMatched = true
                 break
             end
@@ -677,90 +684,85 @@ end
 -- 🔄 BACKGROUND LOGIC LOOPS
 -- ═══════════════════════════════════════════════════════════════════
 
--- Loop 1: Auto Plant
+-- Loop 1: Auto Plant (Equip Ungrown Tools & Fire Prompts)
 task.spawn(function()
-    while task.wait(0.3) do
+    while task.wait(0.2) do
         if AutoPlant then
             pcall(function()
                 logStatus("Đang thực hiện Auto Plant...")
                 local player = game.Players.LocalPlayer
                 
-                -- Method 1: ProximityPrompts on Plots/Soil
-                local foundPrompt = false
-                for _, obj in pairs(workspace:GetDescendants()) do
-                    if obj:IsA("ProximityPrompt") then
-                        local pName = string.lower(obj.Parent.Name .. " " .. obj.ActionText .. " " .. obj.ObjectText)
+                -- 1. Equip any Ungrown tools in Backpack
+                local backpack = player:FindFirstChild("Backpack")
+                if backpack then
+                    for _, tool in pairs(backpack:GetChildren()) do
+                        if tool:IsA("Tool") then
+                            local tName = string.lower(tool.Name)
+                            if string.find(tName, "ungrown") or string.find(tName, "seed") or string.find(tName, "brainrot") then
+                                if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+                                    player.Character.Humanoid:EquipTool(tool)
+                                    task.wait(0.05)
+                                    tool:Activate()
+                                    logStatus("Đã trồng tool: " .. tool.Name)
+                                end
+                            end
+                        end
+                    end
+                end
+
+                -- 2. Activate tool currently equipped
+                if player.Character then
+                    local equippedTool = player.Character:FindFirstChildOfClass("Tool")
+                    if equippedTool then
+                        equippedTool:Activate()
+                    end
+                end
+
+                -- 3. Fire Prompts on Plot / Soil
+                for _, prompt in pairs(workspace:GetDescendants()) do
+                    if prompt:IsA("ProximityPrompt") then
+                        local pName = string.lower(prompt.Parent.Name .. " " .. prompt.ActionText .. " " .. prompt.ObjectText)
                         if string.find(pName, "plant") or string.find(pName, "trồng") or string.find(pName, "seed") or string.find(pName, "plot") then
-                            triggerPrompt(obj.Parent)
-                            foundPrompt = true
+                            triggerPrompt(prompt)
                         end
                     end
-                end
-
-                -- Method 2: Fire Remotes
-                local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes") 
-                   or game:GetService("ReplicatedStorage"):FindFirstChild("Events")
-                   or game:GetService("ReplicatedStorage")
-                
-                for _, child in pairs(remotes:GetChildren()) do
-                    if child:IsA("RemoteEvent") then
-                        local rName = string.lower(child.Name)
-                        if string.find(rName, "plant") or string.find(rName, "seed") then
-                            child:FireServer()
-                        end
-                    end
-                end
-
-                -- Method 3: Virtual Key E
-                if not foundPrompt then
-                    game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                    task.wait(0.05)
-                    game:GetService("VirtualInputManager"):SendKeyEvent(false, Enum.KeyCode.E, false, game)
                 end
             end)
         end
     end
 end)
 
--- Loop 2: Auto Buy (Rarities + Forms)
+-- Loop 2: Auto Buy (Scanning Floating Brainrots on River & Shop Prompts)
 task.spawn(function()
-    while task.wait(0.4) do
+    while task.wait(0.2) do
         if AutoBuy then
             pcall(function()
-                logStatus("Đang quét Shop / Brainrots...")
-                
-                -- Method 1: Scan Workspace Objects (Shop / Conveyor / River / Prompts)
-                for _, item in pairs(workspace:GetDescendants()) do
-                    if item:IsA("Model") or item:IsA("BasePart") then
-                        if checkItemMatches(item) then
-                            -- Trigger Prompt if item has prompt
-                            if triggerPrompt(item) then
-                                logStatus("Đã mua qua Prompt: " .. item.Name)
-                            end
+                logStatus("Đang quét sông / shop mua...")
+                local player = game.Players.LocalPlayer
 
-                            -- Touch Interest if buy pad
-                            local player = game.Players.LocalPlayer
-                            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and item:FindFirstChild("TouchInterest") then
-                                pcall(function()
-                                    if firetouchinterest then
-                                        firetouchinterest(player.Character.HumanoidRootPart, item, 0)
-                                        task.wait(0.05)
-                                        firetouchinterest(player.Character.HumanoidRootPart, item, 1)
-                                    end
-                                end)
-                            end
+                -- Scan all ProximityPrompts in workspace (river, waterfall, shop pads)
+                for _, prompt in pairs(workspace:GetDescendants()) do
+                    if prompt:IsA("ProximityPrompt") then
+                        local itemModel = prompt.Parent
+                        -- Move up to top model if parent is a part inside model
+                        if itemModel and itemModel.Parent and itemModel.Parent ~= workspace and itemModel.Parent:IsA("Model") then
+                            itemModel = itemModel.Parent
+                        end
+
+                        if itemModel and checkItemMatches(itemModel) then
+                            triggerPrompt(prompt)
+                            logStatus("Đã mua: " .. itemModel.Name)
                         end
                     end
                 end
 
-                -- Method 2: Remotes Buy
+                -- Direct Remote Fallback
                 local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes") 
                    or game:GetService("ReplicatedStorage"):FindFirstChild("Events")
                    or game:GetService("ReplicatedStorage")
-                
                 local buyEvt = remotes:FindFirstChild("Buy") or remotes:FindFirstChild("BuyBrainrot") or remotes:FindFirstChild("Purchase")
-                local shopItems = workspace:FindFirstChild("ShopItems") or workspace:FindFirstChild("Shop")
                 
+                local shopItems = workspace:FindFirstChild("ShopItems") or workspace:FindFirstChild("Shop")
                 if shopItems and buyEvt then
                     for _, item in pairs(shopItems:GetChildren()) do
                         if checkItemMatches(item) then
@@ -775,17 +777,17 @@ end)
 
 -- Loop 3: Auto Collect & Auto Sell
 task.spawn(function()
-    while task.wait(0.8) do
+    while task.wait(0.6) do
         if AutoCollect then
             pcall(function()
-                logStatus("Đang gom nhặt tiền / Brainrots...")
+                logStatus("Đang gom nhặt tiền / items...")
                 local player = game.Players.LocalPlayer
                 if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                     for _, obj in pairs(workspace:GetDescendants()) do
                         if obj:IsA("BasePart") and (string.find(string.lower(obj.Name), "coin") or string.find(string.lower(obj.Name), "drop") or string.find(string.lower(obj.Name), "collect")) then
                             if firetouchinterest then
                                 firetouchinterest(player.Character.HumanoidRootPart, obj, 0)
-                                task.wait(0.02)
+                                task.wait(0.01)
                                 firetouchinterest(player.Character.HumanoidRootPart, obj, 1)
                             else
                                 obj.CFrame = player.Character.HumanoidRootPart.CFrame
@@ -800,9 +802,22 @@ task.spawn(function()
             pcall(function()
                 logStatus("Đang thực hiện Auto Sell...")
                 -- Trigger Sell Prompt if present
-                for _, obj in pairs(workspace:GetDescendants()) do
-                    if obj:IsA("ProximityPrompt") and string.find(string.lower(obj.Parent.Name .. " " .. obj.ActionText), "sell") then
-                        triggerPrompt(obj.Parent)
+                for _, prompt in pairs(workspace:GetDescendants()) do
+                    if prompt:IsA("ProximityPrompt") then
+                        local pName = string.lower(prompt.Parent.Name .. " " .. prompt.ActionText)
+                        if string.find(pName, "sell") or string.find(pName, "bán") then
+                            triggerPrompt(prompt)
+                        end
+                    end
+                end
+
+                -- Teleport to SELL zone if present
+                local sellZone = workspace:FindFirstChild("SellZone") or workspace:FindFirstChild("Sell")
+                local player = game.Players.LocalPlayer
+                if sellZone and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    local targetPart = sellZone:IsA("BasePart") and sellZone or sellZone:FindFirstChildWhichIsA("BasePart")
+                    if targetPart then
+                        player.Character.HumanoidRootPart.CFrame = targetPart.CFrame
                     end
                 end
 

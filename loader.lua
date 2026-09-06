@@ -1,11 +1,12 @@
 --[[
     ===================================================================
-    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB (V22 FAST LOADER)
+    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB (V23 FAST LOADER)
     ===================================================================
 --]]
 pcall(function()
-    if game:GetService("CoreGui"):FindFirstChild("GreedyBrainrotsGui") then
-        game:GetService("CoreGui").GreedyBrainrotsGui:Destroy()
+    local container = (gethui and gethui()) or game:GetService("CoreGui")
+    if container and container:FindFirstChild("GreedyBrainrotsGui") then
+        container.GreedyBrainrotsGui:Destroy()
     end
     local pl = game:GetService("Players").LocalPlayer
     if pl and pl:FindFirstChild("PlayerGui") and pl.PlayerGui:FindFirstChild("GreedyBrainrotsGui") then
@@ -13,4 +14,4 @@ pcall(function()
     end
 end)
 
-loadstring(game:HttpGet("https://raw.githubusercontent.com/khahuynh963/greedybrainrots/main/v22.lua?" .. math.random(1, 999999)))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/khahuynh963/greedybrainrots/main/v23.lua?" .. math.random(1, 999999)))()

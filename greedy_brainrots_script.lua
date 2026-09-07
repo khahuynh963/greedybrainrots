@@ -1345,17 +1345,38 @@ local function getGrowPadPrompts(myPlot)
     local harvestPrompt = nil
     local growPadPart = nil
 
+    -- Danh sách từ khóa LOẠI TRỪ (KHÔNG phải harvest)
+    local excludeKeywords = {"trash", "sell", "buy", "purchase", "mua", "collect money", "collect"}
+
     for _, desc in pairs(myPlot:GetDescendants()) do
         if desc:IsA("ProximityPrompt") then
             local act = string.lower(desc.ActionText or "")
             local obj = string.lower(desc.ObjectText or "")
+            local parentName = desc.Parent and string.lower(desc.Parent.Name) or ""
+
+            -- Kiểm tra xem có phải prompt bị loại trừ không
+            local isExcluded = false
+            for _, kw in ipairs(excludeKeywords) do
+                if string.find(act, kw) or parentName == kw then
+                    isExcluded = true
+                    break
+                end
+            end
 
             if string.find(act, "plant") or string.find(act, "sow") or string.find(act, "trồng") then
                 plantPrompt = desc
                 growPadPart = desc.Parent
-            else
-                harvestPrompt = desc
-                if not growPadPart then growPadPart = desc.Parent end
+            elseif not isExcluded then
+                -- Chỉ gán harvestPrompt khi KHÔNG phải trash/sell/buy/collect
+                -- Ưu tiên prompt có từ khóa harvest rõ ràng
+                if string.find(act, "harvest") or string.find(act, "take") or string.find(act, "pick") or string.find(act, "thu hoạch") then
+                    harvestPrompt = desc
+                    growPadPart = desc.Parent
+                elseif not harvestPrompt then
+                    -- Fallback: prompt không rõ ràng, chỉ gán nếu chưa có harvest nào
+                    harvestPrompt = desc
+                    if not growPadPart then growPadPart = desc.Parent end
+                end
             end
         end
     end

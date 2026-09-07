@@ -1,16 +1,11 @@
 --[[
     ===================================================================
-    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V27 (ULTRA PRECISION FIX)
-    - Sửa triệt để 2 vấn đề:
-      1. FIX AUTO TRASH:
-         - Không bao giờ vứt nhầm đồ! Chỉ vứt khi Rarity được xác định 100% 
-           và Rarity đó nằm trong danh sách người chơi TÍCH CHỌN [✓].
-         - Đã đổi mặc định TrashRarities = ALL FALSE để không bị vứt sạch balo.
-         - Thuật toán `detectToolRarity` quét thuộc tính, nòng cốt, tên gọi, ToolTip.
-      2. FIX AUTO LIGHTNING DODGE & HARVEST:
-         - Động cơ Né Sét Quét Sâu Multi-Layer (Attribute, VFX, Sound, Workspace 50 studs).
-         - Nhận diện chính xác 100% ProximityPrompt Thu Hoạch trên Grow Pad.
-         - Phản ứng tức thì 0.01s thu hoạch cây né sét trước khi sét đánh trúng.
+    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V27.1 (HARVEST-ONLY FIX)
+    - V27.1: Bỏ Auto Trồng → Chỉ giữ Auto Né Sét + Thu Hoạch.
+      Người chơi TỰ TRỒNG CÂY, script chỉ lo:
+      1. Kiểm tra sét đánh liên tục (Multi-Layer Deep Scan).
+      2. Thu hoạch cây tức thì khi phát hiện sét hoặc khi cây đủ lớn.
+    - FIX: Không còn bán nhầm cây đang cầm trên tay.
     ===================================================================
 --]]
 
@@ -620,7 +615,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -70, 1, 0)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🍱 BRAINROTS HUB V27 (PRECISION FIX)"
+Title.Text = "🍱 BRAINROTS HUB V27.1 (HARVEST-ONLY)"
 Title.TextColor3 = Color3.fromRGB(0, 255, 170)
 Title.TextSize = 10
 Title.Font = Enum.Font.SourceSansBold
@@ -744,15 +739,15 @@ btnAdminMode.MouseButton1Click:Connect(function()
     end
 end)
 
--- 3. Auto Plant Button
-createToggleButton("🌱 Auto Plant (Trồng & Né Sét 1 Ô): OFF", Color3.fromRGB(0, 255, 170), function(btn, stroke)
+-- 3. Auto Né Sét & Thu Hoạch Button (Người chơi tự trồng, script chỉ né sét + thu hoạch)
+createToggleButton("⚡🌾 Auto Né Sét & Thu Hoạch: OFF", Color3.fromRGB(0, 255, 170), function(btn, stroke)
     AutoPlant = not AutoPlant
     if AutoPlant then
-        btn.Text = "🌱 Auto Plant (Trồng & Né Sét 1 Ô): ON"
+        btn.Text = "⚡🌾 Auto Né Sét & Thu Hoạch: ON"
         btn.TextColor3 = Color3.fromRGB(0, 255, 170)
         stroke.Color = Color3.fromRGB(0, 255, 170)
     else
-        btn.Text = "🌱 Auto Plant (Trồng & Né Sét 1 Ô): OFF"
+        btn.Text = "⚡🌾 Auto Né Sét & Thu Hoạch: OFF"
         btn.TextColor3 = Color3.fromRGB(220, 220, 240)
         stroke.Color = Color3.fromRGB(45, 45, 60)
     end
@@ -1053,7 +1048,7 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(1, -16, 1, 0)
 StatusLabel.Position = UDim2.new(0, 8, 0, 0)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "Trạng thái: Sẵn sàng V27 (Fix Rác & Né Sét Super)."
+StatusLabel.Text = "Trạng thái: Sẵn sàng V27.1 (Né Sét + Thu Hoạch Only)."
 StatusLabel.TextColor3 = Color3.fromRGB(160, 160, 180)
 StatusLabel.TextSize = 10
 StatusLabel.Font = Enum.Font.SourceSans
@@ -1369,7 +1364,10 @@ local function getGrowPadPrompts(myPlot)
 end
 
 -- ═══════════════════════════════════════════════════════════
--- 🌱 AUTO PLANT & LIGHTNING HARVEST ENGINE (ULTRA SPEED 0.01s)
+-- ⚡🌾 AUTO NÉ SÉT & THU HOẠCH ENGINE (HARVEST-ONLY, KHÔNG TỰ TRỒNG)
+-- Người chơi TỰ TRỒNG CÂY. Script chỉ:
+--   1. Quét liên tục phát hiện sét đánh.
+--   2. Thu hoạch cây tức thì khi sét hoặc khi cây đủ lớn.
 -- ═══════════════════════════════════════════════════════════
 task.spawn(function()
     while true do
@@ -1377,12 +1375,17 @@ task.spawn(function()
         if AutoPlant then
             pcall(function()
                 local myPlot = getMyPlot()
-                local plantPrompt, harvestPrompt, growPadPart = getGrowPadPrompts(myPlot)
+                local _, harvestPrompt, growPadPart = getGrowPadPrompts(myPlot)
 
                 local targetDodgeLead = ALL_DODGE_TIMES[DodgeLeadTimeIndex] or 1.2
                 local targetMaxGrowthTime = ALL_GROWTH_TIMES[GrowthWaitIndex] or 15
 
                 if harvestPrompt then
+                    -- Ghi nhận thời gian khi lần đầu thấy harvestPrompt
+                    if plantStartTime == 0 then
+                        plantStartTime = os.clock()
+                    end
+
                     local elapsedTime = os.clock() - plantStartTime
                     local hasLightning, strikeTime = checkLightningThreat(growPadPart, myPlot)
 
@@ -1390,12 +1393,14 @@ task.spawn(function()
                         if DodgeSensitivityMode == "INSTANT" then
                             setStatus("⚡ PHÁT HIỆN SÉT! Thu hoạch NÉ SÉT ngay lập tức!")
                             triggerPrompt(harvestPrompt)
+                            plantStartTime = 0
                             task.wait(0.4)
                         else
                             if strikeTime then
                                 if strikeTime <= targetDodgeLead then
                                     setStatus("⚡ SÉT SẮP ĐÁNH (còn " .. string.format("%.1f", strikeTime) .. "s)! Thu hoạch né sét!")
                                     triggerPrompt(harvestPrompt)
+                                    plantStartTime = 0
                                     task.wait(0.4)
                                 else
                                     setStatus("⚡ Cảnh báo sét (còn " .. string.format("%.1f", strikeTime) .. "s)...")
@@ -1403,6 +1408,7 @@ task.spawn(function()
                             else
                                 setStatus("⚡ Cảnh báo sét! Đang né ngay...")
                                 triggerPrompt(harvestPrompt)
+                                plantStartTime = 0
                                 task.wait(0.4)
                             end
                         end
@@ -1410,36 +1416,17 @@ task.spawn(function()
                         if elapsedTime >= targetMaxGrowthTime then
                             setStatus("🌾 Cây đã nuôi đủ " .. math.floor(elapsedTime) .. "s (Size tối đa) -> Thu hoạch!")
                             triggerPrompt(harvestPrompt)
+                            plantStartTime = 0
                             task.wait(0.4)
                         else
                             setStatus("🌱 Cây đang lớn (" .. math.floor(elapsedTime) .. "s/" .. targetMaxGrowthTime .. "s)... Theo dõi sét ⚡")
                         end
                     end
-
-                elseif plantPrompt then
-                    setStatus("🌱 Đang trồng 1 hạt giống mới lên Grow Pad...")
-
-                    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                    local bp = LocalPlayer:FindFirstChild("Backpack")
-                    local currentTool = char and char:FindFirstChildOfClass("Tool")
-
-                    if not currentTool or not string.find(string.lower(currentTool.Name), "ungrown") then
-                        if bp then
-                            for _, item in pairs(bp:GetChildren()) do
-                                if item:IsA("Tool") and string.find(string.lower(item.Name), "ungrown") then
-                                    item.Parent = char
-                                    task.wait(0.1)
-                                    break
-                                end
-                            end
-                        end
-                    end
-
-                    triggerPrompt(plantPrompt)
-                    plantStartTime = os.clock()
-                    task.wait(0.5)
                 else
-                    setStatus("🔍 Đang tìm Grow Pad thuộc sân của bạn...")
+                    -- Không có harvest prompt → cây chưa được trồng, chờ người chơi trồng
+                    plantStartTime = 0
+                    setStatus("⏳ Chờ bạn trồng cây... (Bật ON = Tự động né sét & thu hoạch)")
+                    task.wait(1) -- chờ chậm hơn khi không có cây
                 end
             end)
         end

@@ -1532,60 +1532,90 @@ task.spawn(function()
     end
 end)
 
--- 3. Auto Trash Loop (My Plot Only - SAFE DETECT & FILTER)
+-- 3. Auto Trash Loop (My Plot Only - SAFE: CHỈ LẤY TỪ BACKPACK, KHÔNG ĐỤNG TOOL ĐANG CẦM)
+-- ⚠️ KHÔNG dùng optimizePrompt cho thùng rác (tránh spam E)
 task.spawn(function()
     while true do
-        task.wait(TrashDelay + (math.random(1, 5) / 100))
+        task.wait(TrashDelay + (math.random(5, 15) / 100))
         if AutoTrash then
             pcall(function()
+                -- Kiểm tra có Rarity nào được bật không, nếu không thì bỏ qua
+                local anyTrashEnabled = false
+                for _, v in pairs(TrashRarities) do
+                    if v == true then anyTrashEnabled = true; break end
+                end
+                if not anyTrashEnabled then return end
+
                 local myPlot = getMyPlot()
                 if not myPlot then return end
 
+                local char = LocalPlayer.Character
+                if not char then return end
+                local bp = LocalPlayer:FindFirstChild("Backpack")
+                if not bp then return end
+
+                -- Tìm trash prompt trong sân
                 local trashPrompt = nil
                 for _, prompt in pairs(myPlot:GetDescendants()) do
-                    if prompt:IsA("ProximityPrompt") and (prompt.ActionText == "Trash Brainrot" or (prompt.Parent and string.lower(prompt.Parent.Name) == "trash")) then
-                        trashPrompt = prompt
-                        break
+                    if prompt:IsA("ProximityPrompt") then
+                        local act = string.lower(prompt.ActionText or "")
+                        local pName = prompt.Parent and string.lower(prompt.Parent.Name) or ""
+                        if string.find(act, "trash") or pName == "trash" then
+                            trashPrompt = prompt
+                            break
+                        end
+                    end
+                end
+                if not trashPrompt then return end
+
+                -- CHỈ tìm trong Backpack, KHÔNG đụng tool đang cầm trên tay
+                local targetTool = nil
+                local targetRarity = nil
+
+                for _, tool in pairs(bp:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        local r = detectToolRarity(tool)
+                        if r ~= "Unknown" and TrashRarities[r] == true then
+                            targetTool = tool
+                            targetRarity = r
+                            break
+                        end
                     end
                 end
 
-                if trashPrompt then
-                    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                    local bp = LocalPlayer:FindFirstChild("Backpack")
-                    local targetTool = nil
-                    local targetRarity = "Unknown"
+                -- Không tìm thấy tool cần vứt trong backpack → bỏ qua
+                if not targetTool or not targetRarity then return end
 
-                    if char then
-                        local equipped = char:FindFirstChildOfClass("Tool")
-                        if equipped then
-                            local r = detectToolRarity(equipped)
-                            if r ~= "Unknown" and TrashRarities[r] == true then
-                                targetTool = equipped
-                                targetRarity = r
-                            end
-                        end
-                    end
+                -- Lưu lại tool đang cầm (nếu có) để trả lại sau
+                local previousEquipped = char:FindFirstChildOfClass("Tool")
 
-                    if not targetTool and bp then
-                        for _, tool in pairs(bp:GetChildren()) do
-                            if tool:IsA("Tool") then
-                                local r = detectToolRarity(tool)
-                                if r ~= "Unknown" and TrashRarities[r] == true then
-                                    tool.Parent = char
-                                    targetTool = tool
-                                    targetRarity = r
-                                    break
-                                end
-                            end
-                        end
-                    end
+                -- Equip tool cần vứt từ backpack
+                targetTool.Parent = char
+                task.wait(0.2) -- Chờ equip xong
 
-                    if targetTool and char and targetTool.Parent == char then
-                        if targetRarity ~= "Unknown" and TrashRarities[targetRarity] == true then
-                            setStatus("🗑️ Đang vứt rác: " .. targetTool.Name .. " [" .. targetRarity .. "]...")
-                            triggerPrompt(trashPrompt)
+                -- Kiểm tra lại chắc chắn tool đã equip đúng
+                if targetTool and targetTool.Parent == char then
+                    setStatus("🗑️ Đang vứt: " .. targetTool.Name .. " [" .. targetRarity .. "]")
+                    
+                    -- Trigger trực tiếp KHÔNG optimize prompt (tránh spam E)
+                    pcall(function()
+                        if fireproximityprompt then
+                            fireproximityprompt(trashPrompt)
                         end
-                    end
+                    end)
+                    pcall(function()
+                        trashPrompt:InputHoldBegin()
+                        task.wait(0.05)
+                        trashPrompt:InputHoldEnd()
+                    end)
+                    task.wait(0.3)
+                end
+
+                -- Trả lại tool trước đó nếu người chơi đang cầm
+                if previousEquipped and previousEquipped.Parent then
+                    pcall(function()
+                        previousEquipped.Parent = char
+                    end)
                 end
             end)
         end

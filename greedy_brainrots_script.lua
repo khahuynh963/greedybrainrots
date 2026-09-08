@@ -60,12 +60,12 @@ end)
 -- ── State Variables ──
 local AutoPlant = false
 local AutoDodgeLightning = true
-local DodgeSensitivityMode = "INSTANT" -- "INSTANT" or "TIMED"
+local DodgeSensitivityMode = "TIMED" -- Mặc định chế độ đếm giây TIMED để căn đúng ~2s
 local AutoFood = true
 local SelectedFoodIndex = 1
 
-local DodgeLeadTimeIndex = 4 -- Default 1.2s
-local ALL_DODGE_TIMES = {0.5, 0.8, 1.0, 1.2, 1.5, 2.0}
+local DodgeLeadTimeIndex = 6 -- Mặc định vị trí số 6 là 2.0s
+local ALL_DODGE_TIMES = {0.5, 0.8, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0}
 
 local GrowthWaitIndex = 4
 local ALL_GROWTH_TIMES = {8, 10, 12, 15, 18, 20, 25, 30}
@@ -549,6 +549,7 @@ end
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "GreedyBrainrotsGui"
 ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 local guiTargetContainer = getGuiContainer()
 ScreenGui.Parent = guiTargetContainer
@@ -781,9 +782,9 @@ end)
 -- ⚡ 5. Dodge Sensitivity Toggle Mode
 local btnDodgeMode = Instance.new("TextButton")
 btnDodgeMode.Size = UDim2.new(1, 0, 0, 32)
-btnDodgeMode.BackgroundColor3 = Color3.fromRGB(50, 35, 15)
-btnDodgeMode.Text = "⚡ Né Sét: [ Siêu Nhạy Cảm (Né Ngay Lập Tức) ]"
-btnDodgeMode.TextColor3 = Color3.fromRGB(255, 200, 50)
+btnDodgeMode.BackgroundColor3 = Color3.fromRGB(20, 35, 50)
+btnDodgeMode.Text = "⚡ Né Sét: [ Theo Giây Đếm Chờ Size ]"
+btnDodgeMode.TextColor3 = Color3.fromRGB(100, 220, 255)
 btnDodgeMode.Font = Enum.Font.SourceSansBold
 btnDodgeMode.TextSize = 11
 btnDodgeMode.Parent = Scroll
@@ -796,10 +797,12 @@ btnDodgeMode.MouseButton1Click:Connect(function()
         DodgeSensitivityMode = "TIMED"
         btnDodgeMode.Text = "⚡ Né Sét: [ Theo Giây Đếm Chờ Size ]"
         btnDodgeMode.TextColor3 = Color3.fromRGB(100, 220, 255)
+        btnDodgeMode.BackgroundColor3 = Color3.fromRGB(20, 35, 50)
     else
         DodgeSensitivityMode = "INSTANT"
         btnDodgeMode.Text = "⚡ Né Sét: [ Siêu Nhạy Cảm (Né Ngay Lập Tức) ]"
         btnDodgeMode.TextColor3 = Color3.fromRGB(255, 200, 50)
+        btnDodgeMode.BackgroundColor3 = Color3.fromRGB(50, 35, 15)
     end
 end)
 
@@ -1073,12 +1076,12 @@ end
 -- 🛠️ Selection Modal Component Helper
 local function createSelectionModal(titleText, itemList, selectedMap)
     local ModalFrame = Instance.new("Frame")
-    ModalFrame.Size = UDim2.new(0, 240, 0, 340)
-    ModalFrame.Position = UDim2.new(0.5, -120, 0.5, -170)
+    ModalFrame.Size = UDim2.new(0, 250, 0, 360)
+    ModalFrame.Position = UDim2.new(0.5, -125, 0.5, -180)
     ModalFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
     ModalFrame.BorderSizePixel = 0
     ModalFrame.Visible = false
-    ModalFrame.ZIndex = 10
+    ModalFrame.ZIndex = 100
     ModalFrame.Parent = ScreenGui
 
     local mCorner = Instance.new("UICorner")
@@ -1101,7 +1104,7 @@ local function createSelectionModal(titleText, itemList, selectedMap)
     mTitle.Font = Enum.Font.SourceSansBold
     mTitle.TextSize = 12
     mTitle.TextXAlignment = Enum.TextXAlignment.Left
-    mTitle.ZIndex = 11
+    mTitle.ZIndex = 105
     mTitle.Parent = ModalFrame
 
     local mClose = Instance.new("TextButton")
@@ -1112,7 +1115,7 @@ local function createSelectionModal(titleText, itemList, selectedMap)
     mClose.TextColor3 = Color3.fromRGB(255, 255, 255)
     mClose.Font = Enum.Font.SourceSansBold
     mClose.TextSize = 12
-    mClose.ZIndex = 11
+    mClose.ZIndex = 105
     mClose.Parent = ModalFrame
 
     local mcCorner = Instance.new("UICorner")
@@ -1129,7 +1132,7 @@ local function createSelectionModal(titleText, itemList, selectedMap)
     SelectAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     SelectAllBtn.Font = Enum.Font.SourceSansBold
     SelectAllBtn.TextSize = 10
-    SelectAllBtn.ZIndex = 11
+    SelectAllBtn.ZIndex = 105
     SelectAllBtn.Parent = ModalFrame
 
     local saCorner = Instance.new("UICorner")
@@ -1144,7 +1147,7 @@ local function createSelectionModal(titleText, itemList, selectedMap)
     DeselectAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     DeselectAllBtn.Font = Enum.Font.SourceSansBold
     DeselectAllBtn.TextSize = 10
-    DeselectAllBtn.ZIndex = 11
+    DeselectAllBtn.ZIndex = 105
     DeselectAllBtn.Parent = ModalFrame
 
     local daCorner = Instance.new("UICorner")
@@ -1156,8 +1159,9 @@ local function createSelectionModal(titleText, itemList, selectedMap)
     mScroll.Position = UDim2.new(0, 8, 0, 65)
     mScroll.BackgroundTransparency = 1
     mScroll.ScrollBarThickness = 4
-    mScroll.CanvasSize = UDim2.new(0, 0, 0, #itemList * 32)
-    mScroll.ZIndex = 11
+    mScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    mScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    mScroll.ZIndex = 102
     mScroll.Parent = ModalFrame
 
     local mLayout = Instance.new("UIListLayout")
@@ -1171,12 +1175,13 @@ local function createSelectionModal(titleText, itemList, selectedMap)
         local isSel = (selectedMap[name] == true)
 
         local ibtn = Instance.new("TextButton")
-        ibtn.Size = UDim2.new(1, 0, 0, 28)
+        ibtn.Size = UDim2.new(1, -6, 0, 28)
         ibtn.BackgroundColor3 = isSel and Color3.fromRGB(0, 160, 100) or Color3.fromRGB(32, 32, 46)
         ibtn.Text = (isSel and "[✓] " or "[ ] ") .. name
         ibtn.TextColor3 = isSel and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 200)
         ibtn.Font = Enum.Font.SourceSansBold
         ibtn.TextSize = 11
+        ibtn.ZIndex = 105
         ibtn.Parent = mScroll
 
         local ic = Instance.new("UICorner")
@@ -1409,6 +1414,9 @@ end
 -- ═══════════════════════════════════════════════════════════
 -- ⚡🌾 AUTO NÉ SÉT & THU HOẠCH ENGINE (HARVEST-ONLY)
 -- ═══════════════════════════════════════════════════════════
+local plantStartTime = 0
+local lightningFirstDetected = 0
+
 task.spawn(function()
     while true do
         task.wait(0.01)
@@ -1417,7 +1425,7 @@ task.spawn(function()
                 local myPlot = getMyPlot()
                 local _, harvestPrompt, growPadPart = getGrowPadPrompts(myPlot)
 
-                local targetDodgeLead = ALL_DODGE_TIMES[DodgeLeadTimeIndex] or 1.2
+                local targetDodgeLead = ALL_DODGE_TIMES[DodgeLeadTimeIndex] or 2.0
                 local targetMaxGrowthTime = ALL_GROWTH_TIMES[GrowthWaitIndex] or 15
 
                 if harvestPrompt then
@@ -1429,29 +1437,36 @@ task.spawn(function()
                     local hasLightning, strikeTime = checkLightningThreat(growPadPart, myPlot)
 
                     if hasLightning and AutoDodgeLightning then
+                        if lightningFirstDetected == 0 then
+                            lightningFirstDetected = os.clock()
+                        end
+
                         if DodgeSensitivityMode == "INSTANT" then
                             setStatus("⚡ PHÁT HIỆN SÉT! Thu hoạch NÉ SÉT ngay lập tức!")
                             triggerPrompt(harvestPrompt)
                             plantStartTime = 0
+                            lightningFirstDetected = 0
                             task.wait(0.4)
                         else
-                            if strikeTime then
-                                if strikeTime <= targetDodgeLead then
-                                    setStatus("⚡ SÉT SẮP ĐÁNH (còn " .. string.format("%.1f", strikeTime) .. "s)! Thu hoạch né sét!")
-                                    triggerPrompt(harvestPrompt)
-                                    plantStartTime = 0
-                                    task.wait(0.4)
-                                else
-                                    setStatus("⚡ Cảnh báo sét (còn " .. string.format("%.1f", strikeTime) .. "s)...")
-                                end
-                            else
-                                setStatus("⚡ Cảnh báo sét! Đang né ngay...")
+                            local currentRemaining = strikeTime
+                            if not currentRemaining then
+                                -- Ước tính từ lúc mây/hạt/âm thanh sét bắt đầu (~5s trước khi sét giật)
+                                local elapsedThreat = os.clock() - lightningFirstDetected
+                                currentRemaining = math.max(0, 5.0 - elapsedThreat)
+                            end
+
+                            if currentRemaining <= targetDodgeLead then
+                                setStatus("⚡ SÉT SẮP ĐÁNH (còn " .. string.format("%.1f", currentRemaining) .. "s <= " .. targetDodgeLead .. "s)! Thu hoạch né sét!")
                                 triggerPrompt(harvestPrompt)
                                 plantStartTime = 0
+                                lightningFirstDetected = 0
                                 task.wait(0.4)
+                            else
+                                setStatus("⚡ Cảnh báo sét (còn ~" .. string.format("%.1f", currentRemaining) .. "s)... Nuôi tiếp chờ né trước " .. targetDodgeLead .. "s")
                             end
                         end
                     else
+                        lightningFirstDetected = 0
                         if elapsedTime >= targetMaxGrowthTime then
                             setStatus("🌾 Cây đã nuôi đủ " .. math.floor(elapsedTime) .. "s -> Thu hoạch!")
                             triggerPrompt(harvestPrompt)
@@ -1463,6 +1478,7 @@ task.spawn(function()
                     end
                 else
                     plantStartTime = 0
+                    lightningFirstDetected = 0
                     setStatus("⏳ Chờ bạn trồng cây... (Auto Né Sét & Thu Hoạch đang ON)")
                     task.wait(1)
                 end

@@ -1260,35 +1260,169 @@ btnHarvestNow.MouseButton1Click:Connect(function()
 end)
 
 -- ═══════════════════════════════════════════════════════════
--- ⚡ ULTRA PRECISION LIGHTNING THREAT DETECTOR
+-- ⚡ ULTRA PRECISION LIGHTNING THREAT DETECTOR (ACCOUNT & PLOT ISOLATED)
 -- ═══════════════════════════════════════════════════════════
-local function checkLightningThreat(growPadPart, myPlot)
+
+-- Kiểm tra vật thể có thuộc Plot hoặc Character của người chơi khác không
+local function isOtherPlayerPlot(instance)
+    if not instance or instance == workspace then return false end
+    local myIdStr = tostring(LocalPlayer.UserId)
+    local myName = string.lower(LocalPlayer.Name)
+    local myDisp = string.lower(LocalPlayer.DisplayName)
+
+    -- 1. Nếu nằm trong Character của người chơi khác -> 100% của người khác
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= LocalPlayer and otherPlayer.Character then
+            if instance:IsDescendantOf(otherPlayer.Character) then
+                return true
+            end
+        end
+    end
+
+    -- 2. Kiểm tra chuỗi tên các cấp cha
+    local cur = instance
+    while cur and cur ~= workspace do
+        local cName = string.lower(cur.Name)
+
+        -- Nếu tên chứa thông tin của chính mình -> Thuộc về mình
+        if string.find(cName, myIdStr) or string.find(cName, myName) or string.find(cName, myDisp) then
+            return false
+        end
+
+        -- Nếu tên chứa thông tin của người chơi khác
+        for _, otherPlayer in pairs(Players:GetPlayers()) do
+            if otherPlayer ~= LocalPlayer then
+                local oName = string.lower(otherPlayer.Name)
+                local oDisp = string.lower(otherPlayer.DisplayName)
+                local oId = tostring(otherPlayer.UserId)
+
+                if (string.find(cName, oName) or string.find(cName, oDisp) or string.find(cName, oId)) then
+                    return true
+                end
+            end
+        end
+
+        -- Format Plot_<Id> hoặc Tycoon_<Id>
+        local plotUserId = string.match(cName, "plot_?(%d+)") or string.match(cName, "tycoon_?(%d+)")
+        if plotUserId and plotUserId ~= myIdStr and #plotUserId >= 4 then
+            return true
+        end
+
+        cur = cur.Parent
+    end
+    return false
+end
+
+-- Hàm lấy tọa độ 3D của âm thanh trong không gian
+local function getSoundWorldPosition(sound)
+    if not sound then return nil end
+    local p = sound.Parent
+    if not p then return nil end
+    if p:IsA("BasePart") then
+        return p.Position
+    elseif p:IsA("Attachment") then
+        return p.WorldPosition
+    elseif p:IsA("Model") then
+        if p.PrimaryPart then return p.PrimaryPart.Position end
+        local bp = p:FindFirstChildWhichIsA("BasePart")
+        if bp then return bp.Position end
+    end
+    local ancestorPart = p:FindFirstAncestorWhichIsA("BasePart")
+    if ancestorPart then
+        return ancestorPart.Position
+    end
+    return nil
+end
+
+-- Xác Định Tiếng Sét Nào Của Tài Khoản Hiện Tại Đang Dùng (Account & Plot Audio Filter)
+local function isSoundBelongToMyAccount(sound, padPos, cropStartTime)
+    if not sound or not sound:IsA("Sound") or not sound.IsPlaying then return false end
+
+    -- A. Nếu âm thanh nằm trong Character hoặc PlayerGui của chính tài khoản mình -> 100% của mình
+    if (LocalPlayer.Character and sound:IsDescendantOf(LocalPlayer.Character)) or
+       (LocalPlayer:FindFirstChild("PlayerGui") and sound:IsDescendantOf(LocalPlayer.PlayerGui)) then
+        return true
+    end
+
+    -- B. Nếu âm thanh nằm trong Character của người chơi khác -> Bỏ qua
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= LocalPlayer and otherPlayer.Character and sound:IsDescendantOf(otherPlayer.Character) then
+            return false
+        end
+    end
+
+    -- C. Nếu âm thanh nằm trong Plot của người chơi khác -> Bỏ qua
+    if isOtherPlayerPlot(sound) then
+        return false
+    end
+
+    -- D. Nếu là âm thanh 3D có vị trí trong không gian:
+    local sPos = getSoundWorldPosition(sound)
+    if sPos and padPos then
+        local horizontalDist = math.sqrt((sPos.X - padPos.X)^2 + (sPos.Z - padPos.Z)^2)
+        -- Nếu vị trí âm thanh cách xa hơn 15 studs -> Tiếng sét của người khác! Bỏ qua!
+        if horizontalDist > 15 then
+            return false
+        end
+        -- Nếu vị trí nằm sát bệ cây của mình (<= 15 studs) -> Tiếng sét đánh vào bệ mình!
+        return true
+    end
+
+    -- E. Kiểm tra thời điểm phát âm thanh: Nếu âm thanh phát trước khi gieo hạt này -> Âm thanh cũ còn sót lại, bỏ qua
+    if cropStartTime and cropStartTime > 0 then
+        if sound.TimePosition and sound.TimePosition > (os.clock() - cropStartTime + 0.25) then
+            return false
+        end
+    end
+
+    -- F. Âm thanh 2D không có tọa độ (toàn server): Kiểm tra Attribute xem có chỉ định tài khoản mình không
+    local targetAttr = sound:GetAttribute("Target") or sound:GetAttribute("Player") or sound:GetAttribute("UserId")
+    if targetAttr then
+        local tStr = string.lower(tostring(targetAttr))
+        if tStr == string.lower(LocalPlayer.Name) or tStr == tostring(LocalPlayer.UserId) then
+            return true
+        else
+            return false
+        end
+    end
+
+    -- Âm thanh 2D chung chung của server đông người -> Bỏ qua để tránh báo động giả!
+    return false
+end
+
+local function checkLightningThreat(growPadPart, myPlot, cropStartTime)
     myPlot = myPlot or getMyPlot()
     local hasThreat = false
     local timeRemaining = nil
 
     local lightningKeywords = {
         "lightning", "strike", "thunder", "storm", "cloud", "bolt",
-        "danger", "threat", "zap", "eclipse", "ghost", "__lightningaudio"
+        "danger", "threat", "zap", "electric", "shock"
     }
 
+    local padPos = nil
+    if growPadPart then
+        padPos = growPadPart:IsA("BasePart") and growPadPart.Position or (growPadPart:IsA("Model") and (growPadPart.PrimaryPart and growPadPart.PrimaryPart.Position or growPadPart:FindFirstChildOfClass("BasePart") and growPadPart:FindFirstChildOfClass("BasePart").Position))
+    end
+    if not padPos and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        padPos = LocalPlayer.Character.HumanoidRootPart.Position
+    end
+    if not padPos then return false, nil end
+
+    -- 1. Kiểm tra TRỰC TIẾP trên GrowPad và Cây của tài khoản mình (Không duyệt bừa Parent chung như Plots)
     local searchTargets = {}
     if growPadPart then
         table.insert(searchTargets, growPadPart)
-        if growPadPart.Parent then table.insert(searchTargets, growPadPart.Parent) end
-    end
-    if myPlot then table.insert(searchTargets, myPlot) end
-    if LocalPlayer.Character then table.insert(searchTargets, LocalPlayer.Character) end
-
-    -- Kiểm tra trực tiếp các đối tượng sự kiện thời tiết sấm sét từ Spy log
-    pcall(function()
-        if workspace:FindFirstChild("__LightningAudio") or workspace:FindFirstChild("GreedyBrainrotsEclipse") or workspace:FindFirstChild("__GreedyBrainrotGhosts") then
-            hasThreat = true
+        if growPadPart.Parent and growPadPart.Parent:IsA("Model") and growPadPart.Parent ~= workspace and not isOtherPlayerPlot(growPadPart.Parent) then
+            local pName = string.lower(growPadPart.Parent.Name)
+            if not string.find(pName, "plots") and not string.find(pName, "farms") and not string.find(pName, "tycoons") then
+                table.insert(searchTargets, growPadPart.Parent)
+            end
         end
-    end)
-    if hasThreat then return true, timeRemaining end
+    end
 
     for _, targetArea in ipairs(searchTargets) do
+        -- A. Kiểm tra Attributes trên bệ/cây của mình
         pcall(function()
             for attrName, val in pairs(targetArea:GetAttributes()) do
                 local aLow = string.lower(tostring(attrName))
@@ -1301,71 +1435,110 @@ local function checkLightningThreat(growPadPart, myPlot)
                 end
             end
         end)
+        if hasThreat then return true, timeRemaining end
 
-        if hasThreat then break end
-
+        -- B. Kiểm tra Descendants trên bệ/cây của mình
         pcall(function()
             for _, desc in pairs(targetArea:GetDescendants()) do
-                if desc:IsA("TextLabel") or desc:IsA("TextButton") then
-                    local txt = string.lower(desc.Text or "")
-                    for _, kw in ipairs(lightningKeywords) do
-                        if string.find(txt, kw) then
-                            hasThreat = true
-                            local numStr = string.match(txt, "%d+%.?%d*")
-                            if numStr then timeRemaining = tonumber(numStr) end
-                            break
-                        end
+                local dName = string.lower(desc.Name)
+                local isLightningName = false
+                for _, kw in ipairs(lightningKeywords) do
+                    if string.find(dName, kw) then
+                        isLightningName = true
+                        break
                     end
-                    if not hasThreat and string.match(txt, "^%d+%.?%d*s?$") then
-                        local numVal = tonumber(string.match(txt, "%d+%.?%d*"))
-                        if numVal and numVal <= 10 then
-                            hasThreat = true
-                            timeRemaining = numVal
-                        end
-                    end
-                elseif desc:IsA("ParticleEmitter") or desc:IsA("Beam") or desc:IsA("Highlight") 
-                       or desc:IsA("Sparkles") or desc:IsA("SelectionBox") or desc:IsA("PointLight")
-                       or (desc:IsA("Sound") and string.find(string.lower(desc.Name), "lightning")) then
-                    hasThreat = true
-                    break
                 end
 
-                if hasThreat then break end
-            end
-        end)
-
-        if hasThreat then break end
-    end
-
-    if not hasThreat then
-        pcall(function()
-            local padPos = nil
-            if growPadPart then
-                padPos = growPadPart:IsA("BasePart") and growPadPart.Position or (growPadPart:IsA("Model") and (growPadPart.PrimaryPart and growPadPart.PrimaryPart.Position or growPadPart:FindFirstChildOfClass("BasePart") and growPadPart:FindFirstChildOfClass("BasePart").Position))
-            end
-            if not padPos and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                padPos = LocalPlayer.Character.HumanoidRootPart.Position
-            end
-
-            if padPos then
-                for _, item in pairs(workspace:GetDescendants()) do
-                    if item:IsA("BasePart") or item:IsA("Model") then
-                        local iName = string.lower(item.Name)
+                if desc:IsA("TextLabel") or desc:IsA("TextButton") then
+                    local txt = string.lower(desc.Text or "")
+                    if isLightningName then
+                        hasThreat = true
+                        local numStr = string.match(txt, "%d+%.?%d*")
+                        if numStr then timeRemaining = tonumber(numStr) end
+                        break
+                    else
                         for _, kw in ipairs(lightningKeywords) do
-                            if string.find(iName, kw) then
-                                local itemPos = item:IsA("BasePart") and item.Position or (item:IsA("Model") and (item.PrimaryPart and item.PrimaryPart.Position or item:FindFirstChildOfClass("BasePart") and item:FindFirstChildOfClass("BasePart").Position))
-                                if itemPos and (itemPos - padPos).Magnitude <= 50 then
-                                    hasThreat = true
-                                    break
-                                end
+                            if string.find(txt, kw) then
+                                hasThreat = true
+                                local numStr = string.match(txt, "%d+%.?%d*")
+                                if numStr then timeRemaining = tonumber(numStr) end
+                                break
                             end
                         end
                     end
-                    if hasThreat then break end
+                -- BẮT BUỘC: Hạt/Hiệu ứng phát sáng phải có tên chứa từ khóa Sét (tránh nhầm hạt phát sáng của cây)
+                elseif (desc:IsA("ParticleEmitter") or desc:IsA("Beam") or desc:IsA("Highlight") or desc:IsA("Sparkles")) and isLightningName then
+                    hasThreat = true
+                    break
+                -- KIỂM TRA ÂM THANH: Phải xác định tiếng sét thuộc tài khoản của mình
+                elseif desc:IsA("Sound") and isLightningName and isSoundBelongToMyAccount(desc, padPos, cropStartTime) then
+                    hasThreat = true
+                    break
                 end
             end
         end)
+        if hasThreat then return true, timeRemaining end
     end
+
+    -- 2. Quét vật thể Sét / Mây Sét lơ lửng ngay TRÊN ĐẦU BỆ CÂY của mình (Khoảng cách ngang X-Z <= 15 studs)
+    pcall(function()
+        for _, obj in pairs(workspace:GetChildren()) do
+            if (obj:IsA("BasePart") or obj:IsA("Model")) and not isOtherPlayerPlot(obj) then
+                local oName = string.lower(obj.Name)
+                local matchesKeyword = false
+                for _, kw in ipairs(lightningKeywords) do
+                    if string.find(oName, kw) then
+                        matchesKeyword = true
+                        break
+                    end
+                end
+
+                if matchesKeyword then
+                    local oPos = obj:IsA("BasePart") and obj.Position or (obj.PrimaryPart and obj.PrimaryPart.Position or (obj:FindFirstChildWhichIsA("BasePart") and obj:FindFirstChildWhichIsA("BasePart").Position))
+                    if oPos then
+                        local horizontalDist = math.sqrt((oPos.X - padPos.X)^2 + (oPos.Z - padPos.Z)^2)
+                        local verticalDist = oPos.Y - padPos.Y
+
+                        -- Chỉ báo động nếu mây/sét nằm ngay trên đầu bệ cây của mình (ngang <= 15 studs, cao từ -2 đến 45 studs)
+                        if horizontalDist <= 15 and verticalDist >= -2 and verticalDist <= 45 then
+                            hasThreat = true
+                            for _, textObj in pairs(obj:GetDescendants()) do
+                                if textObj:IsA("TextLabel") and textObj.Text ~= "" then
+                                    local numStr = string.match(textObj.Text, "%d+%.?%d*")
+                                    if numStr then
+                                        local n = tonumber(numStr)
+                                        if n and n <= 10 then timeRemaining = n end
+                                    end
+                                end
+                            end
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end)
+    if hasThreat then return true, timeRemaining end
+
+    -- 3. Quét các âm thanh sét đang phát trong Workspace / SoundService định vị theo bệ cây của mình
+    pcall(function()
+        for _, snd in pairs(workspace:GetDescendants()) do
+            if snd:IsA("Sound") and snd.IsPlaying then
+                local sName = string.lower(snd.Name)
+                local isLightningSnd = false
+                for _, kw in ipairs(lightningKeywords) do
+                    if string.find(sName, kw) then
+                        isLightningSnd = true
+                        break
+                    end
+                end
+                if isLightningSnd and isSoundBelongToMyAccount(snd, padPos, cropStartTime) then
+                    hasThreat = true
+                    break
+                end
+            end
+        end
+    end)
 
     return hasThreat, timeRemaining
 end
@@ -1477,27 +1650,31 @@ task.spawn(function()
                     end
 
                     local elapsedTime = os.clock() - plantStartTime
-                    local hasLightning, strikeTime = checkLightningThreat(growPadPart, myPlot)
+                    local minSafetyGrowthTime = 1.0 -- Thời gian an toàn tối thiểu tránh giật cây ngay khi vừa nảy mầm
+                    local hasLightning, strikeTime = checkLightningThreat(growPadPart, myPlot, plantStartTime)
 
                     if hasLightning and AutoDodgeLightning then
                         if strikeTime and strikeTime > targetDodgeLead then
-                            setStatus("⚡ SÉT SẮP ĐÁNH (còn " .. string.format("%.1f", strikeTime) .. "s)... Chờ thu hoạch trước " .. targetDodgeLead .. "s")
+                            setStatus("⚡ SÉT CỦA BẠN (còn " .. string.format("%.1f", strikeTime) .. "s)... Chờ né trước " .. targetDodgeLead .. "s")
+                        elseif elapsedTime < minSafetyGrowthTime and (not strikeTime or strikeTime > 0.8) then
+                            -- Vừa gieo mầm dưới 1s: Chờ cây ổn định, chưa vội giật nếu sét chưa đếm ngược khẩn cấp
+                            setStatus("🌱 Cây vừa gieo (" .. string.format("%.1f", elapsedTime) .. "s)... Đang rà soát sét ⚡")
                         else
                             -- Nếu có số đếm <= targetDodgeLead hoặc phát hiện âm thanh/mây sét -> Thu hoạch né ngay!
                             local info = strikeTime and (" (còn " .. string.format("%.1f", strikeTime) .. "s)") or ""
-                            setStatus("⚡ PHÁT HIỆN SÉT" .. info .. "! Thu hoạch NÉ SÉT ngay lập tức!")
+                            setStatus("⚡ PHÁT HIỆN SÉT ĐÁNH VÀO CÂY BẠN" .. info .. "! Thu hoạch NÉ SÉT ngay!")
                             triggerPrompt(harvestPrompt)
                             plantStartTime = 0
-                            task.wait(0.4)
+                            task.wait(0.5)
                         end
                     else
                         if elapsedTime >= targetMaxGrowthTime then
                             setStatus("🌾 Cây đã nuôi đủ " .. math.floor(elapsedTime) .. "s -> Thu hoạch!")
                             triggerPrompt(harvestPrompt)
                             plantStartTime = 0
-                            task.wait(0.4)
+                            task.wait(0.5)
                         else
-                            setStatus("🌱 Cây đang lớn (" .. math.floor(elapsedTime) .. "s/" .. targetMaxGrowthTime .. "s)... Theo dõi sét ⚡")
+                            setStatus("🌱 Đang nuôi cây lớn (" .. math.floor(elapsedTime) .. "s/" .. targetMaxGrowthTime .. "s)... Theo dõi sét ⚡")
                         end
                     end
                 else

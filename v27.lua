@@ -1239,9 +1239,9 @@ btnHarvestNow.MouseButton1Click:Connect(function()
                 local act = string.lower(prompt.ActionText or "")
                 local pName = prompt.Parent and string.lower(prompt.Parent.Name) or ""
                 
-                -- Loại trừ tuyệt đối các nút vứt/bán/mua/quà tặng
+                -- Loại trừ tuyệt đối các nút vứt/bán/mua/quà tặng/đặt pet
                 local isExcluded = false
-                local excludeList = {"trash", "bin", "sell", "buy", "purchase", "collect", "like", "reward", "group", "gift", "daily", "spin", "wheel", "chest"}
+                local excludeList = {"place", "placement", "đặt", "trash", "bin", "sell", "buy", "purchase", "collect", "like", "reward", "group", "gift", "daily", "spin", "wheel", "chest"}
                 for _, kw in ipairs(excludeList) do
                     if string.find(act, kw) or string.find(pName, kw) then
                         isExcluded = true
@@ -1249,7 +1249,7 @@ btnHarvestNow.MouseButton1Click:Connect(function()
                     end
                 end
                 
-                if not isExcluded and (string.find(act, "pull") or string.find(act, "nhổ") or string.find(act, "harvest") or string.find(act, "take") or string.find(act, "pick") or string.find(act, "thu hoạch")) then
+                if not isExcluded and (string.find(act, "pull") or string.find(act, "nhổ") or string.find(act, "harvest") or string.find(act, "take") or string.find(act, "pick") or string.find(act, "thu hoạch")) and not string.find(act, "place") then
                     triggerPrompt(prompt)
                     count = count + 1
                 end
@@ -1375,7 +1375,7 @@ local function getGrowPadPrompts(myPlot)
 
     -- Từ khóa LOẠI TRỪ tuyệt đối (Nút thu hoạch KHÔNG THỂ là các nút này)
     local excludeKeywords = {
-        "trash", "bin", "dump", "sell", "buy", "purchase", "mua", 
+        "place", "placement", "đặt", "trash", "bin", "dump", "sell", "buy", "purchase", "mua", 
         "collect money", "collect", "store", "shop", "vendor",
         "like", "reward", "group", "gift", "daily", "spin", "wheel", "chest"
     }
@@ -1399,11 +1399,10 @@ local function getGrowPadPrompts(myPlot)
                 if string.find(act, "plant") or string.find(act, "sow") or string.find(act, "trồng") then
                     plantPrompt = desc
                     growPadPart = desc.Parent
-                elseif string.find(act, "pull") or string.find(act, "nhổ")
+                elseif (string.find(act, "pull") or string.find(act, "nhổ")
                        or string.find(act, "harvest") or string.find(act, "take") or string.find(act, "pick") 
-                       or string.find(act, "thu hoạch") or string.find(act, "gặt")
-                       or (string.find(parentName, "pad") and not string.find(parentName, "reward") and not string.find(parentName, "like"))
-                       or string.find(parentName, "plant") or string.find(parentName, "crop") then
+                       or string.find(act, "thu hoạch") or string.find(act, "gặt"))
+                       and not string.find(act, "place") then
                     harvestPrompt = desc
                     growPadPart = desc.Parent
                 end

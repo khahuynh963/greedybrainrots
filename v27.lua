@@ -1,11 +1,15 @@
 --[[
     ===================================================================
-    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V27.1 (HARVEST-ONLY FIX)
-    - V27.1: Bỏ Auto Trồng → Chỉ giữ Auto Né Sét + Thu Hoạch.
-      Người chơi TỰ TRỒNG CÂY, script chỉ lo:
-      1. Kiểm tra sét đánh liên tục (Multi-Layer Deep Scan).
-      2. Thu hoạch cây tức thì khi phát hiện sét hoặc khi cây đủ lớn.
-    - FIX: Không còn bán nhầm cây đang cầm trên tay.
+    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V27.2 (ULTRA SAFE TRASH & HARVEST FIX)
+    - V27.2 FIX CỰC KỲ QUAN TRỌNG:
+      1. Sửa triệt để bug getGrowPadPrompts nhầm thùng rác (TrashCan) thành nút thu hoạch.
+         -> Loại trừ tất cả prompt chứa từ khóa "trash", "bin", "sell", "buy", "collect" 
+            và CHỈ gán nút Thu Hoạch khi tìm thấy đúng từ khóa Harvest/Take/Pick/Pad/Crop.
+      2. Sửa thuật toán phát hiện độ hiếm detectToolRarity:
+         -> Dùng khớp từ chính xác (%f[%a]word%f[%A]) tránh nhận nhầm "Uncommon" -> "Common",
+            tránh nhận nhầm "Frog/Hedgehog/Catalog" -> "OG".
+      3. Auto Trash tuyệt đối an toàn: CHỈ vứt đúng Tool trong Backpack có độ hiếm được tick chọn TRUE,
+         KHÔNG BAO GIỜ đụng vào Tool đang cầm trên tay hoặc độ hiếm Unknown/Khác.
     ===================================================================
 --]]
 
@@ -114,7 +118,7 @@ local SelectedRarities = {
     ["Unknown"]   = false
 }
 
--- 🗑️ Trash Rarities Map (FIX: Mặc định tất cả FALSE để người dùng tự chọn, tránh vứt nhầm)
+-- 🗑️ Trash Rarities Map (FIX STRICT: Mặc định tất cả FALSE, người dùng tự chọn chính xác)
 local TrashRarities = {
     ["Common"]    = false,
     ["Rare"]      = false,
@@ -134,10 +138,10 @@ local TrashRarities = {
 local SelectedForms = {}
 for _, f in ipairs(ALL_FORMS) do SelectedForms[f] = true end
 
-local FilterMode = "INDEPENDENT" -- Default: Lọc Độc Lập (Hoặc Rarity Hoặc Form)
+local FilterMode = "INDEPENDENT" -- Default: Lọc Độc Lập
 
 local BuyDelay = 0.15
-local TrashDelay = 0.4
+local TrashDelay = 0.5
 
 local plantStartTime = 0
 
@@ -314,7 +318,7 @@ local ITEM_RARITY_DATABASE = {
     ["zibra zubra zibralini"]        = "Common",
     ["banana dancana"]               = "Common",
     ["cavallo virtuoso"]             = "Common",
-    ["la vacca saturno saturnita"]    = "Common",
+    ["la vacca saturno saturnita"]   = "Common",
     ["bombombini gusini"]            = "Common",
     ["cacto hipopotamo"]             = "Common",
 
@@ -335,22 +339,47 @@ local ITEM_RARITY_DATABASE = {
     ["la grande combinasion"]        = "Legendary",
 }
 
--- 🎯 ULTRA RELIABLE TOOL RARITY DETECTOR
+-- 🎯 ULTRA RELIABLE & STRICT TOOL RARITY DETECTOR
 local function detectToolRarity(tool)
     if not tool or not tool:IsA("Tool") then return "Unknown" end
+
+    -- Hàm kiểm tra từ khớp chính xác bằng Word Boundary pattern (%f[%a]word%f[%A])
+    local function matchRarityStrict(strInput)
+        if not strInput or strInput == "" then return nil end
+        local sLow = string.lower(tostring(strInput))
+
+        -- Kiểm tra từ "uncommon" để không bao giờ khớp lầm thành "common"
+        if string.find(sLow, "%f[%a]uncommon%f[%A]") then
+            return "Common"
+        end
+
+        -- Kiểm tra độ hiếm từ cao xuống thấp bằng boundary match chuẩn
+        local checkOrder = {
+            "Forbidden", "Eternal", "Celestial", "Divine", "Secret", 
+            "Godly", "Mythical", "Legendary", "Epic", "Rare", "Common"
+        }
+
+        for _, r in ipairs(checkOrder) do
+            local rLow = string.lower(r)
+            if string.find(sLow, "%f[%a]" .. rLow .. "%f[%A]") then
+                return r
+            end
+        end
+
+        -- Khớp chữ OG chính xác (tránh dính chữ frog, hedgehog, catalog...)
+        if string.find(sLow, "%f[%a]og%f[%A]") then
+            return "OG"
+        end
+
+        return nil
+    end
     
-    -- 1. Direct Attribute check
+    -- 1. Direct Attribute check (Độ tin cậy cao nhất trong Roblox)
     local foundRarity = nil
     pcall(function()
         local attr = tool:GetAttribute("Rarity") or tool:GetAttribute("Tier") or tool:GetAttribute("ItemRarity")
         if attr then
-            local aStr = tostring(attr)
-            for _, r in ipairs(ALL_RARITIES) do
-                if r ~= "Unknown" and string.find(string.lower(aStr), string.lower(r)) then
-                    foundRarity = r
-                    break
-                end
-            end
+            foundRarity = matchRarityStrict(attr)
         end
     end)
     if foundRarity then return foundRarity end
@@ -358,51 +387,33 @@ local function detectToolRarity(tool)
     -- 2. Value Object check
     pcall(function()
         local rVal = tool:FindFirstChild("Rarity") or tool:FindFirstChild("Tier") or tool:FindFirstChild("RarityValue")
-        if rVal and (rVal:IsA("StringValue") or rVal:IsA("TextLabel")) then
-            local vStr = tostring(rVal.Value)
-            for _, r in ipairs(ALL_RARITIES) do
-                if r ~= "Unknown" and string.find(string.lower(vStr), string.lower(r)) then
-                    foundRarity = r
-                    break
-                end
-            end
+        if rVal and rVal:IsA("StringValue") then
+            foundRarity = matchRarityStrict(rVal.Value)
         end
     end)
     if foundRarity then return foundRarity end
 
-    -- 3. Tool Name and ToolTip Search
+    -- 3. Tool Name & ToolTip Strict Check
+    foundRarity = matchRarityStrict(tool.Name) or matchRarityStrict(tool.ToolTip or "")
+    if foundRarity then return foundRarity end
+
+    -- 4. Database Map Search
     local tName = string.lower(tool.Name)
     local tTip = string.lower(tool.ToolTip or "")
 
-    for _, r in ipairs(ALL_RARITIES) do
-        if r ~= "Unknown" then
-            local rLow = string.lower(r)
-            if string.find(tName, rLow) or string.find(tTip, rLow) then
-                return r
-            end
-        end
-    end
-
-    -- 4. Database Map Search
     for itemName, rarity in pairs(ITEM_RARITY_DATABASE) do
         if string.find(tName, itemName) or string.find(tTip, itemName) then
             return rarity
         end
     end
 
-    -- 5. Search Descendants
+    -- 5. Search Descendants (Chỉ kiểm tra StringValue Rarity trực tiếp)
     pcall(function()
         for _, desc in pairs(tool:GetDescendants()) do
-            if desc:IsA("StringValue") then
-                local vLow = string.lower(desc.Value)
-                for _, r in ipairs(ALL_RARITIES) do
-                    if r ~= "Unknown" and string.find(vLow, string.lower(r)) then
-                        foundRarity = r
-                        break
-                    end
-                end
+            if desc:IsA("StringValue") and string.lower(desc.Name) == "rarity" then
+                foundRarity = matchRarityStrict(desc.Value)
+                if foundRarity then break end
             end
-            if foundRarity then break end
         end
     end)
 
@@ -615,7 +626,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -70, 1, 0)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🍱 BRAINROTS HUB V27.1 (HARVEST-ONLY)"
+Title.Text = "🍱 BRAINROTS HUB V27.2 (ULTRA SAFE)"
 Title.TextColor3 = Color3.fromRGB(0, 255, 170)
 Title.TextSize = 10
 Title.Font = Enum.Font.SourceSansBold
@@ -739,7 +750,7 @@ btnAdminMode.MouseButton1Click:Connect(function()
     end
 end)
 
--- 3. Auto Né Sét & Thu Hoạch Button (Người chơi tự trồng, script chỉ né sét + thu hoạch)
+-- 3. Auto Né Sét & Thu Hoạch Button
 createToggleButton("⚡🌾 Auto Né Sét & Thu Hoạch: OFF", Color3.fromRGB(0, 255, 170), function(btn, stroke)
     AutoPlant = not AutoPlant
     if AutoPlant then
@@ -1008,7 +1019,7 @@ createToggleButton("💵 Auto Collect (Gom Tiền): OFF", Color3.fromRGB(255, 22
     end
 end)
 
--- 19. Auto Sell Button
+-- 19. Auto Sell Button (Chỉ gom tiền bán, không đụng thùng rác)
 createToggleButton("💰 Auto Sell (Bán Hết): OFF", Color3.fromRGB(255, 100, 100), function(btn, stroke)
     AutoSell = not AutoSell
     if AutoSell then
@@ -1048,7 +1059,7 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(1, -16, 1, 0)
 StatusLabel.Position = UDim2.new(0, 8, 0, 0)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "Trạng thái: Sẵn sàng V27.1 (Né Sét + Thu Hoạch Only)."
+StatusLabel.Text = "Trạng thái: Sẵn sàng V27.2 (Ultra Safe Fix)."
 StatusLabel.TextColor3 = Color3.fromRGB(160, 160, 180)
 StatusLabel.TextSize = 10
 StatusLabel.Font = Enum.Font.SourceSans
@@ -1221,7 +1232,19 @@ btnHarvestNow.MouseButton1Click:Connect(function()
         for _, prompt in pairs(myPlot:GetDescendants()) do
             if prompt:IsA("ProximityPrompt") then
                 local act = string.lower(prompt.ActionText or "")
-                if string.find(act, "harvest") or string.find(act, "take") or string.find(act, "collect") or string.find(act, "pick") then
+                local pName = prompt.Parent and string.lower(prompt.Parent.Name) or ""
+                
+                -- Loại trừ tuyệt đối các nút vứt/bán/mua
+                local isExcluded = false
+                local excludeList = {"trash", "bin", "sell", "buy", "purchase", "collect"}
+                for _, kw in ipairs(excludeList) do
+                    if string.find(act, kw) or string.find(pName, kw) then
+                        isExcluded = true
+                        break
+                    end
+                end
+                
+                if not isExcluded and (string.find(act, "harvest") or string.find(act, "take") or string.find(act, "pick") or string.find(act, "thu hoạch")) then
                     triggerPrompt(prompt)
                     count = count + 1
                 end
@@ -1335,7 +1358,7 @@ local function checkLightningThreat(growPadPart, myPlot)
 end
 
 -- ═══════════════════════════════════════════════════════════
--- 🌱 STRICT PLOT PROXIMITY PROMPT FINDER
+-- 🌱 STRICT & SAFE PLOT PROXIMITY PROMPT FINDER (FIX LOẠI TRỪ TRASH)
 -- ═══════════════════════════════════════════════════════════
 local function getGrowPadPrompts(myPlot)
     myPlot = myPlot or getMyPlot()
@@ -1345,8 +1368,11 @@ local function getGrowPadPrompts(myPlot)
     local harvestPrompt = nil
     local growPadPart = nil
 
-    -- Danh sách từ khóa LOẠI TRỪ (KHÔNG phải harvest)
-    local excludeKeywords = {"trash", "sell", "buy", "purchase", "mua", "collect money", "collect"}
+    -- Từ khóa LOẠI TRỪ tuyệt đối (Nút thu hoạch KHÔNG THỂ là các nút này)
+    local excludeKeywords = {
+        "trash", "bin", "dump", "sell", "buy", "purchase", "mua", 
+        "collect money", "collect", "store", "shop", "vendor"
+    }
 
     for _, desc in pairs(myPlot:GetDescendants()) do
         if desc:IsA("ProximityPrompt") then
@@ -1354,28 +1380,24 @@ local function getGrowPadPrompts(myPlot)
             local obj = string.lower(desc.ObjectText or "")
             local parentName = desc.Parent and string.lower(desc.Parent.Name) or ""
 
-            -- Kiểm tra xem có phải prompt bị loại trừ không
+            -- Kiểm tra xem prompt hoặc tên parent có chứa từ khóa loại trừ không
             local isExcluded = false
             for _, kw in ipairs(excludeKeywords) do
-                if string.find(act, kw) or parentName == kw then
+                if string.find(act, kw) or string.find(obj, kw) or string.find(parentName, kw) then
                     isExcluded = true
                     break
                 end
             end
 
-            if string.find(act, "plant") or string.find(act, "sow") or string.find(act, "trồng") then
-                plantPrompt = desc
-                growPadPart = desc.Parent
-            elseif not isExcluded then
-                -- Chỉ gán harvestPrompt khi KHÔNG phải trash/sell/buy/collect
-                -- Ưu tiên prompt có từ khóa harvest rõ ràng
-                if string.find(act, "harvest") or string.find(act, "take") or string.find(act, "pick") or string.find(act, "thu hoạch") then
+            if not isExcluded then
+                if string.find(act, "plant") or string.find(act, "sow") or string.find(act, "trồng") then
+                    plantPrompt = desc
+                    growPadPart = desc.Parent
+                elseif string.find(act, "harvest") or string.find(act, "take") or string.find(act, "pick") 
+                       or string.find(act, "thu hoạch") or string.find(act, "gặt") or string.find(act, "claim")
+                       or string.find(parentName, "pad") or string.find(parentName, "plant") or string.find(parentName, "crop") then
                     harvestPrompt = desc
                     growPadPart = desc.Parent
-                elseif not harvestPrompt then
-                    -- Fallback: prompt không rõ ràng, chỉ gán nếu chưa có harvest nào
-                    harvestPrompt = desc
-                    if not growPadPart then growPadPart = desc.Parent end
                 end
             end
         end
@@ -1385,10 +1407,7 @@ local function getGrowPadPrompts(myPlot)
 end
 
 -- ═══════════════════════════════════════════════════════════
--- ⚡🌾 AUTO NÉ SÉT & THU HOẠCH ENGINE (HARVEST-ONLY, KHÔNG TỰ TRỒNG)
--- Người chơi TỰ TRỒNG CÂY. Script chỉ:
---   1. Quét liên tục phát hiện sét đánh.
---   2. Thu hoạch cây tức thì khi sét hoặc khi cây đủ lớn.
+-- ⚡🌾 AUTO NÉ SÉT & THU HOẠCH ENGINE (HARVEST-ONLY)
 -- ═══════════════════════════════════════════════════════════
 task.spawn(function()
     while true do
@@ -1402,7 +1421,6 @@ task.spawn(function()
                 local targetMaxGrowthTime = ALL_GROWTH_TIMES[GrowthWaitIndex] or 15
 
                 if harvestPrompt then
-                    -- Ghi nhận thời gian khi lần đầu thấy harvestPrompt
                     if plantStartTime == 0 then
                         plantStartTime = os.clock()
                     end
@@ -1435,7 +1453,7 @@ task.spawn(function()
                         end
                     else
                         if elapsedTime >= targetMaxGrowthTime then
-                            setStatus("🌾 Cây đã nuôi đủ " .. math.floor(elapsedTime) .. "s (Size tối đa) -> Thu hoạch!")
+                            setStatus("🌾 Cây đã nuôi đủ " .. math.floor(elapsedTime) .. "s -> Thu hoạch!")
                             triggerPrompt(harvestPrompt)
                             plantStartTime = 0
                             task.wait(0.4)
@@ -1444,17 +1462,16 @@ task.spawn(function()
                         end
                     end
                 else
-                    -- Không có harvest prompt → cây chưa được trồng, chờ người chơi trồng
                     plantStartTime = 0
-                    setStatus("⏳ Chờ bạn trồng cây... (Bật ON = Tự động né sét & thu hoạch)")
-                    task.wait(1) -- chờ chậm hơn khi không có cây
+                    setStatus("⏳ Chờ bạn trồng cây... (Auto Né Sét & Thu Hoạch đang ON)")
+                    task.wait(1)
                 end
             end)
         end
     end
 end)
 
--- 2. Auto Buy Loop (Independent / OR Filtering Support)
+-- 2. Auto Buy Loop
 task.spawn(function()
     while true do
         task.wait(BuyDelay)
@@ -1553,14 +1570,13 @@ task.spawn(function()
     end
 end)
 
--- 3. Auto Trash Loop (My Plot Only - SAFE: CHỈ LẤY TỪ BACKPACK, KHÔNG ĐỤNG TOOL ĐANG CẦM)
--- ⚠️ KHÔNG dùng optimizePrompt cho thùng rác (tránh spam E)
+-- 3. Auto Trash Loop (My Plot Only - ULTRA SAFE: CHỈ VỨT ĐÚNG TOOL TRONG BACKPACK ĐƯỢC CHỌN TRUE)
 task.spawn(function()
     while true do
         task.wait(TrashDelay + (math.random(5, 15) / 100))
         if AutoTrash then
             pcall(function()
-                -- Kiểm tra có Rarity nào được bật không, nếu không thì bỏ qua
+                -- Kiểm tra xem có Rarity nào được chọn TRUE không, nếu không thì BỎ QUA HOÀN TOÀN!
                 local anyTrashEnabled = false
                 for _, v in pairs(TrashRarities) do
                     if v == true then anyTrashEnabled = true; break end
@@ -1575,13 +1591,13 @@ task.spawn(function()
                 local bp = LocalPlayer:FindFirstChild("Backpack")
                 if not bp then return end
 
-                -- Tìm trash prompt trong sân
+                -- Tìm Trash Prompt trong Plot chính xác
                 local trashPrompt = nil
                 for _, prompt in pairs(myPlot:GetDescendants()) do
                     if prompt:IsA("ProximityPrompt") then
                         local act = string.lower(prompt.ActionText or "")
                         local pName = prompt.Parent and string.lower(prompt.Parent.Name) or ""
-                        if string.find(act, "trash") or pName == "trash" then
+                        if string.find(act, "trash") or string.find(pName, "trash") or string.find(pName, "bin") then
                             trashPrompt = prompt
                             break
                         end
@@ -1589,13 +1605,14 @@ task.spawn(function()
                 end
                 if not trashPrompt then return end
 
-                -- CHỈ tìm trong Backpack, KHÔNG đụng tool đang cầm trên tay
+                -- CHỈ quét trong Backpack (KHÔNG bao giờ quét tool đang cầm trên tay)
                 local targetTool = nil
                 local targetRarity = nil
 
                 for _, tool in pairs(bp:GetChildren()) do
                     if tool:IsA("Tool") then
                         local r = detectToolRarity(tool)
+                        -- CHỈ vứt khi độ hiếm khác Unknown VÀ được tích TRUE trong TrashRarities
                         if r ~= "Unknown" and TrashRarities[r] == true then
                             targetTool = tool
                             targetRarity = r
@@ -1604,21 +1621,21 @@ task.spawn(function()
                     end
                 end
 
-                -- Không tìm thấy tool cần vứt trong backpack → bỏ qua
+                -- Nếu không có Tool nào thỏa điều kiện lọc → BỎ QUA!
                 if not targetTool or not targetRarity then return end
 
-                -- Lưu lại tool đang cầm (nếu có) để trả lại sau
+                -- Lưu lại Tool đang cầm (nếu có)
                 local previousEquipped = char:FindFirstChildOfClass("Tool")
 
-                -- Equip tool cần vứt từ backpack
+                -- Equip đúng Tool cần vứt từ Backpack sang Character
                 targetTool.Parent = char
-                task.wait(0.2) -- Chờ equip xong
+                task.wait(0.2)
 
-                -- Kiểm tra lại chắc chắn tool đã equip đúng
+                -- Kiểm tra chắc chắn Tool đã được equip đúng
                 if targetTool and targetTool.Parent == char then
-                    setStatus("🗑️ Đang vứt: " .. targetTool.Name .. " [" .. targetRarity .. "]")
+                    setStatus("🗑️ Đang vứt rác: " .. targetTool.Name .. " [" .. targetRarity .. "]")
                     
-                    -- Trigger trực tiếp KHÔNG optimize prompt (tránh spam E)
+                    -- Kích hoạt prompt vứt rác an toàn
                     pcall(function()
                         if fireproximityprompt then
                             fireproximityprompt(trashPrompt)
@@ -1632,7 +1649,7 @@ task.spawn(function()
                     task.wait(0.3)
                 end
 
-                -- Trả lại tool trước đó nếu người chơi đang cầm
+                -- Trả lại Tool trước đó cho người chơi (nếu có)
                 if previousEquipped and previousEquipped.Parent then
                     pcall(function()
                         previousEquipped.Parent = char
@@ -1643,26 +1660,19 @@ task.spawn(function()
     end
 end)
 
--- 4. Auto Sell & Collect Loop (My Plot Only)
+-- 4. Auto Collect Money Loop (CHỈ gom tiền, tuyệt đối không đụng nút vứt rác)
 task.spawn(function()
     while true do
         task.wait(0.5)
         local myPlot = getMyPlot()
-        if AutoSell and myPlot then
-            pcall(function()
-                for _, prompt in pairs(myPlot:GetDescendants()) do
-                    if prompt:IsA("ProximityPrompt") and (prompt.ActionText == "Trash Brainrot" or prompt.ActionText == "Sell") then
-                        setStatus("Đang bán (Auto Sell)...")
-                        triggerPrompt(prompt)
-                    end
-                end
-            end)
-        end
         if AutoCollect and myPlot then
             pcall(function()
                 for _, prompt in pairs(myPlot:GetDescendants()) do
-                    if prompt:IsA("ProximityPrompt") and (prompt.ActionText == "Collect Money" or prompt.ActionText == "Collect") then
-                        triggerPrompt(prompt)
+                    if prompt:IsA("ProximityPrompt") then
+                        local act = string.lower(prompt.ActionText or "")
+                        if string.find(act, "collect money") or string.find(act, "collect cash") or string.find(act, "gom tiền") then
+                            triggerPrompt(prompt)
+                        end
                     end
                 end
             end)

@@ -1239,9 +1239,9 @@ btnHarvestNow.MouseButton1Click:Connect(function()
                 local act = string.lower(prompt.ActionText or "")
                 local pName = prompt.Parent and string.lower(prompt.Parent.Name) or ""
                 
-                -- Loại trừ tuyệt đối các nút vứt/bán/mua/quà tặng/đặt pet
+                -- Loại trừ tuyệt đối các nút vứt/bán/mua/quà tặng/đặt pet/gom tiền
                 local isExcluded = false
-                local excludeList = {"place", "placement", "đặt", "trash", "bin", "sell", "buy", "purchase", "collect", "like", "reward", "group", "gift", "daily", "spin", "wheel", "chest"}
+                local excludeList = {"place", "placement", "đặt", "trash", "bin", "sell", "buy", "purchase", "collect money", "collect cash", "gom tiền", "like", "reward", "group", "gift", "daily", "spin", "wheel", "chest"}
                 for _, kw in ipairs(excludeList) do
                     if string.find(act, kw) or string.find(pName, kw) then
                         isExcluded = true
@@ -1249,7 +1249,7 @@ btnHarvestNow.MouseButton1Click:Connect(function()
                     end
                 end
                 
-                if not isExcluded and (string.find(act, "pull") or string.find(act, "nhổ") or string.find(act, "harvest") or string.find(act, "take") or string.find(act, "pick") or string.find(act, "thu hoạch")) and not string.find(act, "place") then
+                if not isExcluded and (string.find(act, "collect") or string.find(act, "pull") or string.find(act, "nhổ") or string.find(act, "harvest") or string.find(act, "take") or string.find(act, "pick") or string.find(act, "thu hoạch")) and not string.find(act, "place") and not string.find(act, "money") and not string.find(act, "cash") then
                     triggerPrompt(prompt)
                     count = count + 1
                 end
@@ -1279,6 +1279,14 @@ local function checkLightningThreat(growPadPart, myPlot)
     end
     if myPlot then table.insert(searchTargets, myPlot) end
     if LocalPlayer.Character then table.insert(searchTargets, LocalPlayer.Character) end
+
+    -- Kiểm tra trực tiếp các đối tượng sự kiện thời tiết sấm sét từ Spy log
+    pcall(function()
+        if workspace:FindFirstChild("__LightningAudio") or workspace:FindFirstChild("GreedyBrainrotsEclipse") or workspace:FindFirstChild("__GreedyBrainrotGhosts") then
+            hasThreat = true
+        end
+    end)
+    if hasThreat then return true, timeRemaining end
 
     for _, targetArea in ipairs(searchTargets) do
         pcall(function()
@@ -1376,33 +1384,67 @@ local function getGrowPadPrompts(myPlot)
     -- Từ khóa LOẠI TRỪ tuyệt đối (Nút thu hoạch KHÔNG THỂ là các nút này)
     local excludeKeywords = {
         "place", "placement", "đặt", "trash", "bin", "dump", "sell", "buy", "purchase", "mua", 
-        "collect money", "collect", "store", "shop", "vendor",
+        "collect money", "collect cash", "collect coin", "gom tiền", "store", "shop", "vendor",
         "like", "reward", "group", "gift", "daily", "spin", "wheel", "chest"
     }
 
-    for _, desc in pairs(myPlot:GetDescendants()) do
-        if desc:IsA("ProximityPrompt") then
-            local act = string.lower(desc.ActionText or "")
-            local obj = string.lower(desc.ObjectText or "")
-            local parentName = desc.Parent and string.lower(desc.Parent.Name) or ""
+    local candidatePrompts = {}
 
-            -- Kiểm tra xem prompt hoặc tên parent có chứa từ khóa loại trừ không
-            local isExcluded = false
-            for _, kw in ipairs(excludeKeywords) do
-                if string.find(act, kw) or string.find(obj, kw) or string.find(parentName, kw) then
-                    isExcluded = true
-                    break
+    -- 1. Ưu tiên quét trong myPlot
+    if myPlot then
+        for _, desc in pairs(myPlot:GetDescendants()) do
+            if desc:IsA("ProximityPrompt") then
+                table.insert(candidatePrompts, desc)
+            end
+        end
+    end
+
+    -- 2. Quét thêm các prompt trong bán kính 25 studs quanh nhân vật (chính là bệ cây bạn đang đứng)
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        for _, prompt in pairs(workspace:GetDescendants()) do
+            if prompt:IsA("ProximityPrompt") then
+                local pPart = prompt.Parent
+                local pPos = pPart and (pPart:IsA("BasePart") and pPart.Position or (pPart:IsA("Model") and pPart.PrimaryPart and pPart.PrimaryPart.Position))
+                if pPos and (pPos - hrp.Position).Magnitude <= 25 then
+                    local alreadyIn = false
+                    for _, cp in ipairs(candidatePrompts) do
+                        if cp == prompt then alreadyIn = true break end
+                    end
+                    if not alreadyIn then
+                        table.insert(candidatePrompts, prompt)
+                    end
                 end
             end
+        end
+    end
 
-            if not isExcluded then
-                if string.find(act, "plant") or string.find(act, "sow") or string.find(act, "trồng") then
+    for _, desc in ipairs(candidatePrompts) do
+        local act = string.lower(desc.ActionText or "")
+        local obj = string.lower(desc.ObjectText or "")
+        local parentName = desc.Parent and string.lower(desc.Parent.Name) or ""
+
+        -- Kiểm tra xem prompt hoặc tên parent có chứa từ khóa loại trừ không
+        local isExcluded = false
+        for _, kw in ipairs(excludeKeywords) do
+            if string.find(act, kw) or string.find(obj, kw) or string.find(parentName, kw) then
+                isExcluded = true
+                break
+            end
+        end
+
+        if not isExcluded then
+            if string.find(act, "plant") or string.find(act, "sow") or string.find(act, "trồng") then
+                if not plantPrompt then
                     plantPrompt = desc
                     growPadPart = desc.Parent
-                elseif (string.find(act, "pull") or string.find(act, "nhổ")
-                       or string.find(act, "harvest") or string.find(act, "take") or string.find(act, "pick") 
-                       or string.find(act, "thu hoạch") or string.find(act, "gặt"))
-                       and not string.find(act, "place") then
+                end
+            elseif (string.find(act, "collect") or string.find(act, "harvest") or string.find(act, "pull")
+                   or string.find(act, "take") or string.find(act, "pick") or string.find(act, "nhổ")
+                   or string.find(act, "thu hoạch") or string.find(act, "claim") or string.find(act, "gặt"))
+                   and not string.find(act, "place") and not string.find(act, "money") and not string.find(act, "cash") then
+                if not harvestPrompt then
                     harvestPrompt = desc
                     growPadPart = desc.Parent
                 end
@@ -1417,7 +1459,6 @@ end
 -- ⚡🌾 AUTO NÉ SÉT & THU HOẠCH ENGINE (HARVEST-ONLY)
 -- ═══════════════════════════════════════════════════════════
 local plantStartTime = 0
-local lightningFirstDetected = 0
 
 task.spawn(function()
     while true do
@@ -1439,36 +1480,17 @@ task.spawn(function()
                     local hasLightning, strikeTime = checkLightningThreat(growPadPart, myPlot)
 
                     if hasLightning and AutoDodgeLightning then
-                        if lightningFirstDetected == 0 then
-                            lightningFirstDetected = os.clock()
-                        end
-
-                        if DodgeSensitivityMode == "INSTANT" then
-                            setStatus("⚡ PHÁT HIỆN SÉT! Thu hoạch NÉ SÉT ngay lập tức!")
+                        if strikeTime and strikeTime > targetDodgeLead then
+                            setStatus("⚡ SÉT SẮP ĐÁNH (còn " .. string.format("%.1f", strikeTime) .. "s)... Chờ thu hoạch trước " .. targetDodgeLead .. "s")
+                        else
+                            -- Nếu có số đếm <= targetDodgeLead hoặc phát hiện âm thanh/mây sét -> Thu hoạch né ngay!
+                            local info = strikeTime and (" (còn " .. string.format("%.1f", strikeTime) .. "s)") or ""
+                            setStatus("⚡ PHÁT HIỆN SÉT" .. info .. "! Thu hoạch NÉ SÉT ngay lập tức!")
                             triggerPrompt(harvestPrompt)
                             plantStartTime = 0
-                            lightningFirstDetected = 0
                             task.wait(0.4)
-                        else
-                            local currentRemaining = strikeTime
-                            if not currentRemaining then
-                                -- Ước tính từ lúc mây/hạt/âm thanh sét bắt đầu (~5s trước khi sét giật)
-                                local elapsedThreat = os.clock() - lightningFirstDetected
-                                currentRemaining = math.max(0, 5.0 - elapsedThreat)
-                            end
-
-                            if currentRemaining <= targetDodgeLead then
-                                setStatus("⚡ SÉT SẮP ĐÁNH (còn " .. string.format("%.1f", currentRemaining) .. "s <= " .. targetDodgeLead .. "s)! Thu hoạch né sét!")
-                                triggerPrompt(harvestPrompt)
-                                plantStartTime = 0
-                                lightningFirstDetected = 0
-                                task.wait(0.4)
-                            else
-                                setStatus("⚡ Cảnh báo sét (còn ~" .. string.format("%.1f", currentRemaining) .. "s)... Nuôi tiếp chờ né trước " .. targetDodgeLead .. "s")
-                            end
                         end
                     else
-                        lightningFirstDetected = 0
                         if elapsedTime >= targetMaxGrowthTime then
                             setStatus("🌾 Cây đã nuôi đủ " .. math.floor(elapsedTime) .. "s -> Thu hoạch!")
                             triggerPrompt(harvestPrompt)
@@ -1480,9 +1502,8 @@ task.spawn(function()
                     end
                 else
                     plantStartTime = 0
-                    lightningFirstDetected = 0
                     setStatus("⏳ Chờ bạn trồng cây... (Auto Né Sét & Thu Hoạch đang ON)")
-                    task.wait(1)
+                    task.wait(0.2)
                 end
             end)
         end

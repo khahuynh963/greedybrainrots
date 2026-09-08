@@ -9,7 +9,7 @@ Script tự động chơi toàn diện, cày tiền và bảo vệ mùa màng ch
 Dán đoạn mã sau vào Executor của bạn (Delta, Fluxus, Wave, Codex, Solara, Hydrogen...):
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/khahuynh963/greedybrainrots/main/greedy_growers/loader.lua?" .. math.random(1, 999999)))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/khahuynh963/greedy_growers/main/loader.lua?" .. math.random(1, 999999)))()
 ```
 
 ---

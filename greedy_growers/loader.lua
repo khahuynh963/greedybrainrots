@@ -14,4 +14,4 @@ pcall(function()
     end
 end)
 
-loadstring(game:HttpGet("https://raw.githubusercontent.com/khahuynh963/greedybrainrots/main/greedy_growers/script.lua?" .. math.random(1, 999999)))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/khahuynh963/greedy_growers/main/script.lua?" .. math.random(1, 999999)))()

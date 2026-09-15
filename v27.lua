@@ -1,6 +1,6 @@
 --[[
     ===================================================================
-    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V27.2 (ULTRA SAFE TRASH & HARVEST FIX)
+    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V28 (SUPREME RARITY & 24/7 LIGHTNING SHIELD)
     - V27.2 FIX CỰC KỲ QUAN TRỌNG:
       1. Sửa triệt để bug getGrowPadPrompts nhầm thùng rác (TrashCan) thành nút thu hoạch.
          -> Loại trừ tất cả prompt chứa từ khóa "trash", "bin", "sell", "buy", "collect" 
@@ -59,6 +59,7 @@ end)
 
 -- ── State Variables ──
 local AutoPlant = false
+local LightningShield247 = true -- 🛡️ KHIÊN CHỐNG SÉT 24/7 (ĐỘC LẬP, BẢO VỆ NGAY CẢ KHI TẮT AUTOPLANT)
 local AutoDodgeLightning = true
 local DodgeSensitivityMode = "TIMED" -- Mặc định chế độ đếm giây TIMED để căn đúng ~2s
 local AutoFood = true
@@ -93,7 +94,7 @@ local AdminMode = "SERVER_HOP"
 local ALL_RARITIES = {
     "Common", "Rare", "Epic", "Legendary", "Mythical", 
     "Godly", "Secret", "Divine", "OG", "Celestial", 
-    "Eternal", "Forbidden", "Unknown"
+    "Eternal", "Forbidden", "Unknown", "Supreme"
 }
 
 local ALL_FORMS = {
@@ -115,7 +116,8 @@ local SelectedRarities = {
     ["Celestial"] = true,
     ["Eternal"]   = true,
     ["Forbidden"] = true,
-    ["Unknown"]   = false
+    ["Unknown"]   = false,
+    ["Supreme"]   = true
 }
 
 -- 🗑️ Trash Rarities Map (FIX STRICT: Mặc định tất cả FALSE, người dùng tự chọn chính xác)
@@ -132,7 +134,8 @@ local TrashRarities = {
     ["Celestial"] = false,
     ["Eternal"]   = false,
     ["Forbidden"] = false,
-    ["Unknown"]   = false -- KHÔNG BAO GIỜ VỨT UNKNOWN!
+    ["Unknown"]   = false, -- KHÔNG BAO GIỜ VỨT UNKNOWN!
+    ["Supreme"]   = false  -- KHÔNG BAO GIỜ VỨT SUPREME!
 }
 
 local SelectedForms = {}
@@ -765,7 +768,23 @@ createToggleButton("⚡🌾 Auto Né Sét & Thu Hoạch: OFF", Color3.fromRGB(0,
     end
 end)
 
--- ⚡ 4. Auto Dodge Lightning Toggle
+-- 🛡️ 4. Khiên Chống Sét Độc Lập 24/7 Toggle
+createToggleButton("🛡️ Khiên Chống Sét 24/7: ON", Color3.fromRGB(0, 255, 180), function(btn, stroke)
+    LightningShield247 = not LightningShield247
+    if LightningShield247 then
+        btn.Text = "🛡️ Khiên Chống Sét 24/7: ON"
+        btn.TextColor3 = Color3.fromRGB(0, 255, 180)
+        stroke.Color = Color3.fromRGB(0, 255, 180)
+        setStatus("🛡️ Đã BẬT Khiên Chống Sét Độc Lập 24/7 (Bảo vệ mọi lúc)!")
+    else
+        btn.Text = "🛡️ Khiên Chống Sét 24/7: OFF"
+        btn.TextColor3 = Color3.fromRGB(220, 220, 240)
+        stroke.Color = Color3.fromRGB(45, 45, 60)
+        setStatus("⚠️ Đã TẮT Khiên Chống Sét 24/7!")
+    end
+end)
+
+-- ⚡ 5. Auto Dodge Lightning Toggle
 createToggleButton("⚡ Auto Né Sét Cây: ON", Color3.fromRGB(255, 220, 0), function(btn, stroke)
     AutoDodgeLightning = not AutoDodgeLightning
     if AutoDodgeLightning then
@@ -1627,6 +1646,91 @@ local function getGrowPadPrompts(myPlot)
 
     return plantPrompt, harvestPrompt, growPadPart
 end
+
+-- ═══════════════════════════════════════════════════════════
+-- 🛡️ KHIÊN CHỐNG SÉT ĐỘC LẬP 24/7 (STANDALONE LIGHTNING SHIELD)
+-- ═══════════════════════════════════════════════════════════
+local lastThreatDetectedTime = 0
+
+-- 1. Hook DescendantAdded: Bắt sự kiện tạo sét 0ms + Xóa hitbox va chạm
+pcall(function()
+    workspace.DescendantAdded:Connect(function(desc)
+        if not LightningShield247 and not AutoDodgeLightning then return end
+        pcall(function()
+            local name = string.lower(desc.Name)
+            local isLightningVFX = false
+            for _, kw in ipairs(lightningKeywords) do
+                if string.find(name, kw) then
+                    isLightningVFX = true
+                    break
+                end
+            end
+            if isLightningVFX or name == "__lightningaudio" or name == "ghoststrikefx" or name == "greedybrainrotseclipse" then
+                -- Vô hiệu hóa hitbox va chạm sét cục bộ
+                if desc:IsA("BasePart") then
+                    desc.CanTouch = false
+                    desc.CanCollide = false
+                    local tt = desc:FindFirstChildOfClass("TouchTransmitter")
+                    if tt then tt:Destroy() end
+                elseif desc:IsA("Model") then
+                    for _, p in ipairs(desc:GetDescendants()) do
+                        if p:IsA("BasePart") then
+                            p.CanTouch = false
+                            p.CanCollide = false
+                            local tt = p:FindFirstChildOfClass("TouchTransmitter")
+                            if tt then tt:Destroy() end
+                        end
+                    end
+                end
+
+                -- Kiểm tra vị trí nếu nhắm vào Grow Pad của mình
+                local myPlot = getMyPlot()
+                local _, harvestPrompt, growPadPart = getGrowPadPrompts(myPlot)
+                if harvestPrompt and growPadPart then
+                    local padPos = growPadPart:IsA("BasePart") and growPadPart.Position or (growPadPart:IsA("Model") and (growPadPart.PrimaryPart and growPadPart.PrimaryPart.Position or growPadPart:FindFirstChildWhichIsA("BasePart") and growPadPart:FindFirstChildWhichIsA("BasePart").Position))
+                    local isNearPad = true
+                    if padPos and (desc:IsA("BasePart") or (desc:IsA("Model") and desc.PrimaryPart)) then
+                        local dPos = desc:IsA("BasePart") and desc.Position or desc.PrimaryPart.Position
+                        local horizontalDist = math.sqrt((dPos.X - padPos.X)^2 + (dPos.Z - padPos.Z)^2)
+                        if horizontalDist > 25 then
+                            isNearPad = false
+                        end
+                    end
+
+                    if isNearPad then
+                        lastThreatDetectedTime = os.clock()
+                        setStatus("🛡️ [KHIÊN 24/7] BẮT SÉT TỨC THÌ (0ms)! Thu hoạch Brainrot vào Túi Đồ an toàn!")
+                        triggerPrompt(harvestPrompt)
+                    end
+                end
+            end
+        end)
+    end)
+end)
+
+-- 2. Luồng bảo vệ độc lập 24/7 (Kể cả khi TẮT Auto Thu Hoạch / AutoPlant)
+task.spawn(function()
+    while true do
+        task.wait(0.01)
+        if LightningShield247 and not AutoPlant then
+            pcall(function()
+                local myPlot = getMyPlot()
+                local _, harvestPrompt, growPadPart = getGrowPadPrompts(myPlot)
+                if harvestPrompt then
+                    local hasLightning, strikeTime = checkLightningThreat(growPadPart, myPlot, 0)
+                    local recentEventThreat = (os.clock() - lastThreatDetectedTime) < 1.5
+
+                    if hasLightning or recentEventThreat then
+                        local info = strikeTime and (" (còn " .. string.format("%.1f", strikeTime) .. "s)") or ""
+                        setStatus("🛡️ [KHIÊN 24/7] SÉT ĐANG NHẮM VÀO BỆ CÂY" .. info .. "! Đã thu hoạch vào Túi Đồ an toàn 100%!")
+                        triggerPrompt(harvestPrompt)
+                        task.wait(0.5)
+                    end
+                end
+            end)
+        end
+    end
+end)
 
 -- ═══════════════════════════════════════════════════════════
 -- ⚡🌾 AUTO NÉ SÉT & THU HOẠCH ENGINE (HARVEST-ONLY)

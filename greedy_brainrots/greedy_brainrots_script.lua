@@ -1,11 +1,15 @@
 --[[
     ===================================================================
-    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V26 (INDEPENDENT OR-FILTERING)
-    - Chế độ Lọc Độc Lập (Independent / OR Filtering):
-      1. Mua bất kỳ con nào có Độ Hiếm bạn chọn (Rarity A, B, C...) ở MỌI Dòng Form!
-      2. HOẶC Mua bất kỳ con nào có Dòng Form bạn chọn (Form X, Y, Z...) ở MỌI Độ Hiếm!
-      3. Đã thêm tùy chọn "🔀 Chế Độ Lọc Mua: [ LỌC ĐỘC LẬP (Hoặc Rarity Hoặc Form) ]" 
-         và đặt làm MẶC ĐỊNH!
+    🧠 GREEDY BRAINROTS - ULTIMATE AUTO HUB V28 (SUPREME RARITY & 24/7 LIGHTNING SHIELD)
+    - V27.2 FIX CỰC KỲ QUAN TRỌNG:
+      1. Sửa triệt để bug getGrowPadPrompts nhầm thùng rác (TrashCan) thành nút thu hoạch.
+         -> Loại trừ tất cả prompt chứa từ khóa "trash", "bin", "sell", "buy", "collect" 
+            và CHỈ gán nút Thu Hoạch khi tìm thấy đúng từ khóa Harvest/Take/Pick/Pad/Crop.
+      2. Sửa thuật toán phát hiện độ hiếm detectToolRarity:
+         -> Dùng khớp từ chính xác (%f[%a]word%f[%A]) tránh nhận nhầm "Uncommon" -> "Common",
+            tránh nhận nhầm "Frog/Hedgehog/Catalog" -> "OG".
+      3. Auto Trash tuyệt đối an toàn: CHỈ vứt đúng Tool trong Backpack có độ hiếm được tick chọn TRUE,
+         KHÔNG BAO GIỜ đụng vào Tool đang cầm trên tay hoặc độ hiếm Unknown/Khác.
     ===================================================================
 --]]
 
@@ -55,13 +59,14 @@ end)
 
 -- ── State Variables ──
 local AutoPlant = false
+local LightningShield247 = true -- 🛡️ KHIÊN CHỐNG SÉT 24/7 (ĐỘC LẬP, BẢO VỆ NGAY CẢ KHI TẮT AUTOPLANT)
 local AutoDodgeLightning = true
-local DodgeSensitivityMode = "INSTANT" -- "INSTANT" or "TIMED"
+local DodgeSensitivityMode = "TIMED" -- Mặc định chế độ đếm giây TIMED để căn đúng ~2s
 local AutoFood = true
 local SelectedFoodIndex = 1
 
-local DodgeLeadTimeIndex = 4 -- Default 1.2s
-local ALL_DODGE_TIMES = {0.5, 0.8, 1.0, 1.2, 1.5, 2.0}
+local DodgeLeadTimeIndex = 6 -- Mặc định vị trí số 6 là 2.0s
+local ALL_DODGE_TIMES = {0.5, 0.8, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0}
 
 local GrowthWaitIndex = 4
 local ALL_GROWTH_TIMES = {8, 10, 12, 15, 18, 20, 25, 30}
@@ -89,7 +94,7 @@ local AdminMode = "SERVER_HOP"
 local ALL_RARITIES = {
     "Common", "Rare", "Epic", "Legendary", "Mythical", 
     "Godly", "Secret", "Divine", "OG", "Celestial", 
-    "Eternal", "Forbidden", "Unknown"
+    "Eternal", "Forbidden", "Unknown", "Supreme"
 }
 
 local ALL_FORMS = {
@@ -97,7 +102,7 @@ local ALL_FORMS = {
     "Starfall", "Rainbow", "Hacker", "Lava", "Cooked"
 }
 
--- 🛒 Buy Rarities Map
+-- 🛒 Buy Rarities Map (Mặc định chọn các dòng hiếm)
 local SelectedRarities = {
     ["Common"]    = false,
     ["Rare"]      = false,
@@ -111,14 +116,15 @@ local SelectedRarities = {
     ["Celestial"] = true,
     ["Eternal"]   = true,
     ["Forbidden"] = true,
-    ["Unknown"]   = false
+    ["Unknown"]   = false,
+    ["Supreme"]   = true
 }
 
--- 🗑️ Trash Rarities Map
+-- 🗑️ Trash Rarities Map (FIX STRICT: Mặc định tất cả FALSE, người dùng tự chọn chính xác)
 local TrashRarities = {
-    ["Common"]    = true,
-    ["Rare"]      = true,
-    ["Epic"]      = true,
+    ["Common"]    = false,
+    ["Rare"]      = false,
+    ["Epic"]      = false,
     ["Legendary"] = false,
     ["Mythical"]  = false,
     ["Godly"]     = false,
@@ -128,16 +134,17 @@ local TrashRarities = {
     ["Celestial"] = false,
     ["Eternal"]   = false,
     ["Forbidden"] = false,
-    ["Unknown"]   = false
+    ["Unknown"]   = false, -- KHÔNG BAO GIỜ VỨT UNKNOWN!
+    ["Supreme"]   = false  -- KHÔNG BAO GIỜ VỨT SUPREME!
 }
 
 local SelectedForms = {}
 for _, f in ipairs(ALL_FORMS) do SelectedForms[f] = true end
 
-local FilterMode = "INDEPENDENT" -- Default: Lọc Độc Lập (Hoặc Rarity Hoặc Form)
+local FilterMode = "INDEPENDENT" -- Default: Lọc Độc Lập
 
 local BuyDelay = 0.15
-local TrashDelay = 0.3
+local TrashDelay = 0.5
 
 local plantStartTime = 0
 
@@ -216,17 +223,15 @@ local function isOtherPlayerPlot(container)
     while current and current ~= workspace do
         local cName = current.Name
         
-        -- Format check: Plot_<UserId>
         local plotUserId = string.match(cName, "^Plot_(%d+)")
         if plotUserId then
             if plotUserId ~= myIdStr then
-                return true -- BELONGS TO ANOTHER PLAYER!
+                return true
             else
-                return false -- BELONGS TO LOCAL PLAYER!
+                return false
             end
         end
 
-        -- Check other player usernames/displaynames/UserIds
         local pName = string.lower(LocalPlayer.Name)
         local pDisp = string.lower(LocalPlayer.DisplayName)
 
@@ -241,7 +246,6 @@ local function isOtherPlayerPlot(container)
                     return true
                 end
 
-                -- Check attributes on container
                 local hasOtherAttr = false
                 pcall(function()
                     for attrName, val in pairs(current:GetAttributes()) do
@@ -254,7 +258,6 @@ local function isOtherPlayerPlot(container)
                 end)
                 if hasOtherAttr then return true end
 
-                -- Check StringValue / ObjectValue
                 local hasOtherValue = false
                 pcall(function()
                     for _, child in pairs(current:GetChildren()) do
@@ -318,7 +321,7 @@ local ITEM_RARITY_DATABASE = {
     ["zibra zubra zibralini"]        = "Common",
     ["banana dancana"]               = "Common",
     ["cavallo virtuoso"]             = "Common",
-    ["la vacca saturno saturnita"]    = "Common",
+    ["la vacca saturno saturnita"]   = "Common",
     ["bombombini gusini"]            = "Common",
     ["cacto hipopotamo"]             = "Common",
 
@@ -339,29 +342,85 @@ local ITEM_RARITY_DATABASE = {
     ["la grande combinasion"]        = "Legendary",
 }
 
+-- 🎯 ULTRA RELIABLE & STRICT TOOL RARITY DETECTOR
 local function detectToolRarity(tool)
     if not tool or not tool:IsA("Tool") then return "Unknown" end
-    
-    local attr = tool:GetAttribute("Rarity") or tool:GetAttribute("Tier")
-    if attr then return tostring(attr) end
-    
-    local rVal = tool:FindFirstChild("Rarity") or tool:FindFirstChild("Tier")
-    if rVal and rVal:IsA("StringValue") then return rVal.Value end
 
-    local tName = string.lower(tool.Name)
-    for _, r in ipairs(ALL_RARITIES) do
-        if r ~= "Unknown" and string.find(tName, string.lower(r)) then
-            return r
+    -- Hàm kiểm tra từ khớp chính xác bằng Word Boundary pattern (%f[%a]word%f[%A])
+    local function matchRarityStrict(strInput)
+        if not strInput or strInput == "" then return nil end
+        local sLow = string.lower(tostring(strInput))
+
+        -- Kiểm tra từ "uncommon" để không bao giờ khớp lầm thành "common"
+        if string.find(sLow, "%f[%a]uncommon%f[%A]") then
+            return "Common"
         end
+
+        -- Kiểm tra độ hiếm từ cao xuống thấp bằng boundary match chuẩn
+        local checkOrder = {
+            "Forbidden", "Eternal", "Celestial", "Divine", "Secret", 
+            "Godly", "Mythical", "Legendary", "Epic", "Rare", "Common"
+        }
+
+        for _, r in ipairs(checkOrder) do
+            local rLow = string.lower(r)
+            if string.find(sLow, "%f[%a]" .. rLow .. "%f[%A]") then
+                return r
+            end
+        end
+
+        -- Khớp chữ OG chính xác (tránh dính chữ frog, hedgehog, catalog...)
+        if string.find(sLow, "%f[%a]og%f[%A]") then
+            return "OG"
+        end
+
+        return nil
     end
+    
+    -- 1. Direct Attribute check (Độ tin cậy cao nhất trong Roblox)
+    local foundRarity = nil
+    pcall(function()
+        local attr = tool:GetAttribute("Rarity") or tool:GetAttribute("Tier") or tool:GetAttribute("ItemRarity")
+        if attr then
+            foundRarity = matchRarityStrict(attr)
+        end
+    end)
+    if foundRarity then return foundRarity end
+    
+    -- 2. Value Object check
+    pcall(function()
+        local rVal = tool:FindFirstChild("Rarity") or tool:FindFirstChild("Tier") or tool:FindFirstChild("RarityValue")
+        if rVal and rVal:IsA("StringValue") then
+            foundRarity = matchRarityStrict(rVal.Value)
+        end
+    end)
+    if foundRarity then return foundRarity end
+
+    -- 3. Tool Name & ToolTip Strict Check
+    foundRarity = matchRarityStrict(tool.Name) or matchRarityStrict(tool.ToolTip or "")
+    if foundRarity then return foundRarity end
+
+    -- 4. Database Map Search
+    local tName = string.lower(tool.Name)
+    local tTip = string.lower(tool.ToolTip or "")
 
     for itemName, rarity in pairs(ITEM_RARITY_DATABASE) do
-        if string.find(tName, itemName) then
+        if string.find(tName, itemName) or string.find(tTip, itemName) then
             return rarity
         end
     end
 
-    return "Unknown"
+    -- 5. Search Descendants (Chỉ kiểm tra StringValue Rarity trực tiếp)
+    pcall(function()
+        for _, desc in pairs(tool:GetDescendants()) do
+            if desc:IsA("StringValue") and string.lower(desc.Name) == "rarity" then
+                foundRarity = matchRarityStrict(desc.Value)
+                if foundRarity then break end
+            end
+        end
+    end)
+
+    return foundRarity or "Unknown"
 end
 
 local function optimizePrompt(prompt)
@@ -378,9 +437,8 @@ end
 local function triggerPrompt(prompt)
     if not prompt or not prompt:IsA("ProximityPrompt") then return end
     
-    -- Reject prompt if it is located inside another player's plot
     if isOtherPlayerPlot(prompt.Parent) then
-        return -- BỎ QUA 100%! Không bao giờ bấm nút thuộc sân người khác
+        return
     end
 
     optimizePrompt(prompt)
@@ -494,11 +552,11 @@ end
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "GreedyBrainrotsGui"
 ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 local guiTargetContainer = getGuiContainer()
 ScreenGui.Parent = guiTargetContainer
 
--- Auto re-attach if Gui parent becomes nil or player spawns
 LocalPlayer.CharacterAdded:Connect(function()
     task.wait(1)
     pcall(function()
@@ -572,14 +630,13 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -70, 1, 0)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🍱 BRAINROTS HUB V26 (OR FILTERING)"
+Title.Text = "🍱 BRAINROTS HUB V27.2 (ULTRA SAFE)"
 Title.TextColor3 = Color3.fromRGB(0, 255, 170)
 Title.TextSize = 10
 Title.Font = Enum.Font.SourceSansBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = Header
 
--- ➖ Minimize Button
 local MiniBtn = Instance.new("TextButton")
 MiniBtn.Name = "MiniBtn"
 MiniBtn.Size = UDim2.new(0, 26, 0, 26)
@@ -599,7 +656,6 @@ MiniBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = false 
 end)
 
--- ❌ Close Button
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Name = "CloseBtn"
 CloseBtn.Size = UDim2.new(0, 26, 0, 26)
@@ -617,7 +673,6 @@ CloseCorner.Parent = CloseBtn
 
 CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
 
--- Content Scroll
 local Scroll = Instance.new("ScrollingFrame")
 Scroll.Size = UDim2.new(1, -12, 1, -76)
 Scroll.Position = UDim2.new(0, 6, 0, 42)
@@ -631,7 +686,6 @@ Layout.SortOrder = Enum.SortOrder.LayoutOrder
 Layout.Padding = UDim.new(0, 7)
 Layout.Parent = Scroll
 
--- Button Generator Utility
 local function createToggleButton(text, color, onClick)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, 0, 0, 34)
@@ -700,21 +754,37 @@ btnAdminMode.MouseButton1Click:Connect(function()
     end
 end)
 
--- 3. Auto Plant Button
-createToggleButton("🌱 Auto Plant (Trồng & Né Sét 1 Ô): OFF", Color3.fromRGB(0, 255, 170), function(btn, stroke)
+-- 3. Auto Né Sét & Thu Hoạch Button
+createToggleButton("⚡🌾 Auto Né Sét & Thu Hoạch: OFF", Color3.fromRGB(0, 255, 170), function(btn, stroke)
     AutoPlant = not AutoPlant
     if AutoPlant then
-        btn.Text = "🌱 Auto Plant (Trồng & Né Sét 1 Ô): ON"
+        btn.Text = "⚡🌾 Auto Né Sét & Thu Hoạch: ON"
         btn.TextColor3 = Color3.fromRGB(0, 255, 170)
         stroke.Color = Color3.fromRGB(0, 255, 170)
     else
-        btn.Text = "🌱 Auto Plant (Trồng & Né Sét 1 Ô): OFF"
+        btn.Text = "⚡🌾 Auto Né Sét & Thu Hoạch: OFF"
         btn.TextColor3 = Color3.fromRGB(220, 220, 240)
         stroke.Color = Color3.fromRGB(45, 45, 60)
     end
 end)
 
--- ⚡ 4. Auto Dodge Lightning Toggle
+-- 🛡️ 4. Khiên Chống Sét Độc Lập 24/7 Toggle
+createToggleButton("🛡️ Khiên Chống Sét 24/7: ON", Color3.fromRGB(0, 255, 180), function(btn, stroke)
+    LightningShield247 = not LightningShield247
+    if LightningShield247 then
+        btn.Text = "🛡️ Khiên Chống Sét 24/7: ON"
+        btn.TextColor3 = Color3.fromRGB(0, 255, 180)
+        stroke.Color = Color3.fromRGB(0, 255, 180)
+        setStatus("🛡️ Đã BẬT Khiên Chống Sét Độc Lập 24/7 (Bảo vệ mọi lúc)!")
+    else
+        btn.Text = "🛡️ Khiên Chống Sét 24/7: OFF"
+        btn.TextColor3 = Color3.fromRGB(220, 220, 240)
+        stroke.Color = Color3.fromRGB(45, 45, 60)
+        setStatus("⚠️ Đã TẮT Khiên Chống Sét 24/7!")
+    end
+end)
+
+-- ⚡ 5. Auto Dodge Lightning Toggle
 createToggleButton("⚡ Auto Né Sét Cây: ON", Color3.fromRGB(255, 220, 0), function(btn, stroke)
     AutoDodgeLightning = not AutoDodgeLightning
     if AutoDodgeLightning then
@@ -731,9 +801,9 @@ end)
 -- ⚡ 5. Dodge Sensitivity Toggle Mode
 local btnDodgeMode = Instance.new("TextButton")
 btnDodgeMode.Size = UDim2.new(1, 0, 0, 32)
-btnDodgeMode.BackgroundColor3 = Color3.fromRGB(50, 35, 15)
-btnDodgeMode.Text = "⚡ Né Sét: [ Siêu Nhạy Cảm (Né Ngay Lập Tức) ]"
-btnDodgeMode.TextColor3 = Color3.fromRGB(255, 200, 50)
+btnDodgeMode.BackgroundColor3 = Color3.fromRGB(20, 35, 50)
+btnDodgeMode.Text = "⚡ Né Sét: [ Theo Giây Đếm Chờ Size ]"
+btnDodgeMode.TextColor3 = Color3.fromRGB(100, 220, 255)
 btnDodgeMode.Font = Enum.Font.SourceSansBold
 btnDodgeMode.TextSize = 11
 btnDodgeMode.Parent = Scroll
@@ -746,10 +816,12 @@ btnDodgeMode.MouseButton1Click:Connect(function()
         DodgeSensitivityMode = "TIMED"
         btnDodgeMode.Text = "⚡ Né Sét: [ Theo Giây Đếm Chờ Size ]"
         btnDodgeMode.TextColor3 = Color3.fromRGB(100, 220, 255)
+        btnDodgeMode.BackgroundColor3 = Color3.fromRGB(20, 35, 50)
     else
         DodgeSensitivityMode = "INSTANT"
         btnDodgeMode.Text = "⚡ Né Sét: [ Siêu Nhạy Cảm (Né Ngay Lập Tức) ]"
         btnDodgeMode.TextColor3 = Color3.fromRGB(255, 200, 50)
+        btnDodgeMode.BackgroundColor3 = Color3.fromRGB(50, 35, 15)
     end
 end)
 
@@ -805,11 +877,11 @@ createToggleButton("🍱 Auto Select Food (Tự Chọn Đồ Ăn): ON", Color3.f
     end
 end)
 
--- 🍱 9. Food Choice Selector Button
+-- 🍕 9. Select Food Type Button
 local btnFoodType = Instance.new("TextButton")
 btnFoodType.Size = UDim2.new(1, 0, 0, 32)
 btnFoodType.BackgroundColor3 = Color3.fromRGB(45, 35, 20)
-btnFoodType.Text = "🍕 Chọn Đồ Ăn: [ Basic (+37% Luck Free) ]"
+btnFoodType.Text = "🍕 Chọn Đồ Ăn: [ " .. ALL_FOOD_DISPLAYS[SelectedFoodIndex] .. " ]"
 btnFoodType.TextColor3 = Color3.fromRGB(255, 220, 100)
 btnFoodType.Font = Enum.Font.SourceSansBold
 btnFoodType.TextSize = 11
@@ -891,7 +963,7 @@ local fCorner = Instance.new("UICorner")
 fCorner.CornerRadius = UDim.new(0, 7)
 fCorner.Parent = btnForms
 
--- 15. Filter Mode Toggle Button (4 Modes)
+-- 15. Filter Mode Toggle Button
 local btnMode = Instance.new("TextButton")
 btnMode.Size = UDim2.new(1, 0, 0, 32)
 btnMode.BackgroundColor3 = Color3.fromRGB(0, 140, 100)
@@ -969,7 +1041,7 @@ createToggleButton("💵 Auto Collect (Gom Tiền): OFF", Color3.fromRGB(255, 22
     end
 end)
 
--- 19. Auto Sell Button
+-- 19. Auto Sell Button (Chỉ gom tiền bán, không đụng thùng rác)
 createToggleButton("💰 Auto Sell (Bán Hết): OFF", Color3.fromRGB(255, 100, 100), function(btn, stroke)
     AutoSell = not AutoSell
     if AutoSell then
@@ -1009,7 +1081,7 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(1, -16, 1, 0)
 StatusLabel.Position = UDim2.new(0, 8, 0, 0)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "Trạng thái: Sẵn sàng V26 (Lọc Độc Lập Active)."
+StatusLabel.Text = "Trạng thái: Sẵn sàng V27.2 (Ultra Safe Fix)."
 StatusLabel.TextColor3 = Color3.fromRGB(160, 160, 180)
 StatusLabel.TextSize = 10
 StatusLabel.Font = Enum.Font.SourceSans
@@ -1020,18 +1092,19 @@ local function setStatus(txt)
     StatusLabel.Text = "Trạng thái: " .. txt
 end
 
--- Modal Maker Utility
-local function createSelectionModal(titleText, itemsTable, selectedMap)
+-- 🛠️ Selection Modal Component Helper
+local function createSelectionModal(titleText, itemList, selectedMap)
     local ModalFrame = Instance.new("Frame")
-    ModalFrame.Size = UDim2.new(0, 280, 0, 340)
-    ModalFrame.Position = UDim2.new(0.5, -140, 0.5, -170)
-    ModalFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
-    ModalFrame.Active = true
+    ModalFrame.Size = UDim2.new(0, 250, 0, 360)
+    ModalFrame.Position = UDim2.new(0.5, -125, 0.5, -180)
+    ModalFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    ModalFrame.BorderSizePixel = 0
     ModalFrame.Visible = false
+    ModalFrame.ZIndex = 100
     ModalFrame.Parent = ScreenGui
 
     local mCorner = Instance.new("UICorner")
-    mCorner.CornerRadius = UDim.new(0, 12)
+    mCorner.CornerRadius = UDim.new(0, 10)
     mCorner.Parent = ModalFrame
 
     local mStroke = Instance.new("UIStroke")
@@ -1039,70 +1112,75 @@ local function createSelectionModal(titleText, itemsTable, selectedMap)
     mStroke.Thickness = 1.5
     mStroke.Parent = ModalFrame
 
-    local mHeader = Instance.new("Frame")
-    mHeader.Size = UDim2.new(1, 0, 0, 34)
-    mHeader.BackgroundColor3 = Color3.fromRGB(30, 30, 44)
-    mHeader.Parent = ModalFrame
-
-    makeDraggable(ModalFrame, mHeader)
+    makeDraggable(ModalFrame)
 
     local mTitle = Instance.new("TextLabel")
-    mTitle.Size = UDim2.new(1, -40, 1, 0)
-    mTitle.Position = UDim2.new(0, 10, 0, 0)
+    mTitle.Size = UDim2.new(1, -40, 0, 30)
+    mTitle.Position = UDim2.new(0, 10, 0, 5)
     mTitle.BackgroundTransparency = 1
     mTitle.Text = titleText
     mTitle.TextColor3 = Color3.fromRGB(0, 255, 170)
-    mTitle.TextSize = 12
     mTitle.Font = Enum.Font.SourceSansBold
+    mTitle.TextSize = 12
     mTitle.TextXAlignment = Enum.TextXAlignment.Left
-    mTitle.Parent = mHeader
+    mTitle.ZIndex = 105
+    mTitle.Parent = ModalFrame
 
     local mClose = Instance.new("TextButton")
-    mClose.Size = UDim2.new(0, 22, 0, 22)
-    mClose.Position = UDim2.new(1, -26, 0, 6)
+    mClose.Size = UDim2.new(0, 24, 0, 24)
+    mClose.Position = UDim2.new(1, -28, 0, 5)
     mClose.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
     mClose.Text = "X"
     mClose.TextColor3 = Color3.fromRGB(255, 255, 255)
     mClose.Font = Enum.Font.SourceSansBold
-    mClose.TextSize = 10
-    mClose.Parent = mHeader
+    mClose.TextSize = 12
+    mClose.ZIndex = 105
+    mClose.Parent = ModalFrame
+
     local mcCorner = Instance.new("UICorner")
     mcCorner.CornerRadius = UDim.new(0, 5)
     mcCorner.Parent = mClose
+
     mClose.MouseButton1Click:Connect(function() ModalFrame.Visible = false end)
 
     local SelectAllBtn = Instance.new("TextButton")
     SelectAllBtn.Size = UDim2.new(0.46, 0, 0, 24)
-    SelectAllBtn.Position = UDim2.new(0.03, 0, 0, 40)
-    SelectAllBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 120)
+    SelectAllBtn.Position = UDim2.new(0, 8, 0, 35)
+    SelectAllBtn.BackgroundColor3 = Color3.fromRGB(40, 120, 60)
     SelectAllBtn.Text = "✓ Chọn Tất Cả"
     SelectAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     SelectAllBtn.Font = Enum.Font.SourceSansBold
     SelectAllBtn.TextSize = 10
+    SelectAllBtn.ZIndex = 105
     SelectAllBtn.Parent = ModalFrame
+
     local saCorner = Instance.new("UICorner")
     saCorner.CornerRadius = UDim.new(0, 5)
     saCorner.Parent = SelectAllBtn
 
     local DeselectAllBtn = Instance.new("TextButton")
     DeselectAllBtn.Size = UDim2.new(0.46, 0, 0, 24)
-    DeselectAllBtn.Position = UDim2.new(0.51, 0, 0, 40)
-    DeselectAllBtn.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
-    DeselectAllBtn.Text = "✗ Bỏ Chọn Tất Cả"
+    DeselectAllBtn.Position = UDim2.new(0.52, 0, 0, 35)
+    DeselectAllBtn.BackgroundColor3 = Color3.fromRGB(120, 40, 40)
+    DeselectAllBtn.Text = "✗ Bỏ Chọn Tất"
     DeselectAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     DeselectAllBtn.Font = Enum.Font.SourceSansBold
     DeselectAllBtn.TextSize = 10
+    DeselectAllBtn.ZIndex = 105
     DeselectAllBtn.Parent = ModalFrame
+
     local daCorner = Instance.new("UICorner")
     daCorner.CornerRadius = UDim.new(0, 5)
     daCorner.Parent = DeselectAllBtn
 
     local mScroll = Instance.new("ScrollingFrame")
-    mScroll.Size = UDim2.new(1, -14, 1, -74)
-    mScroll.Position = UDim2.new(0, 7, 0, 68)
+    mScroll.Size = UDim2.new(1, -16, 1, -70)
+    mScroll.Position = UDim2.new(0, 8, 0, 65)
     mScroll.BackgroundTransparency = 1
     mScroll.ScrollBarThickness = 4
-    mScroll.CanvasSize = UDim2.new(0, 0, 0, #itemsTable * 32)
+    mScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    mScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    mScroll.ZIndex = 102
     mScroll.Parent = ModalFrame
 
     local mLayout = Instance.new("UIListLayout")
@@ -1112,15 +1190,17 @@ local function createSelectionModal(titleText, itemsTable, selectedMap)
 
     local itemButtons = {}
 
-    for _, name in ipairs(itemsTable) do
-        local isSel = selectedMap[name]
+    for _, name in ipairs(itemList) do
+        local isSel = (selectedMap[name] == true)
+
         local ibtn = Instance.new("TextButton")
-        ibtn.Size = UDim2.new(1, 0, 0, 28)
+        ibtn.Size = UDim2.new(1, -6, 0, 28)
         ibtn.BackgroundColor3 = isSel and Color3.fromRGB(0, 160, 100) or Color3.fromRGB(32, 32, 46)
         ibtn.Text = (isSel and "[✓] " or "[ ] ") .. name
         ibtn.TextColor3 = isSel and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 200)
         ibtn.Font = Enum.Font.SourceSansBold
         ibtn.TextSize = 11
+        ibtn.ZIndex = 105
         ibtn.Parent = mScroll
 
         local ic = Instance.new("UICorner")
@@ -1176,194 +1256,192 @@ btnHarvestNow.MouseButton1Click:Connect(function()
         for _, prompt in pairs(myPlot:GetDescendants()) do
             if prompt:IsA("ProximityPrompt") then
                 local act = string.lower(prompt.ActionText or "")
-                local obj = string.lower(prompt.ObjectText or "")
-                if string.find(act, "harvest") or string.find(act, "collect") or string.find(act, "pick") or string.find(act, "take") or string.find(act, "grab") or (string.find(obj, "grow") and not string.find(act, "plant") and not string.find(act, "buy")) then
+                local pName = prompt.Parent and string.lower(prompt.Parent.Name) or ""
+                
+                -- Loại trừ tuyệt đối các nút vứt/bán/mua/quà tặng/đặt pet/gom tiền
+                local isExcluded = false
+                local excludeList = {"place", "placement", "đặt", "trash", "bin", "sell", "buy", "purchase", "collect money", "collect cash", "gom tiền", "like", "reward", "group", "gift", "daily", "spin", "wheel", "chest"}
+                for _, kw in ipairs(excludeList) do
+                    if string.find(act, kw) or string.find(pName, kw) then
+                        isExcluded = true
+                        break
+                    end
+                end
+                
+                if not isExcluded and (string.find(act, "collect") or string.find(act, "pull") or string.find(act, "nhổ") or string.find(act, "harvest") or string.find(act, "take") or string.find(act, "pick") or string.find(act, "thu hoạch")) and not string.find(act, "place") and not string.find(act, "money") and not string.find(act, "cash") then
                     triggerPrompt(prompt)
                     count = count + 1
                 end
             end
         end
-        setStatus("🌾 Đã thu hoạch xong (" .. count .. " cây)!")
-    else
-        setStatus("⚠️ Không tìm thấy Plot của bạn!")
     end
+    setStatus("🌾 Đã gửi lệnh thu hoạch " .. count .. " cây!")
 end)
 
 -- ═══════════════════════════════════════════════════════════
--- CORE AUTOMATION LOOPS WITH ANTI-BAN
+-- ⚡ ULTRA PRECISION LIGHTNING THREAT DETECTOR (ACCOUNT & PLOT ISOLATED)
 -- ═══════════════════════════════════════════════════════════
 
--- 0. Anti-Ban Admin Detector Loop
-task.spawn(function()
-    while true do
-        task.wait(2)
-        if AntiBan then
-            pcall(function()
-                for _, player in pairs(Players:GetPlayers()) do
-                    if isPlayerAdmin(player) then
-                        setStatus("🚨 PHÁT HIỆN ADMIN: " .. player.Name .. "!")
-                        if AdminMode == "SERVER_HOP" then
-                            setStatus("🌐 Đang đổi Server khác để né Admin...")
-                            task.wait(1)
-                            serverHop()
-                        elseif AdminMode == "KICK_SELF" then
-                            setStatus("🚪 Đang tự ngắt kết nối...")
-                            task.wait(1)
-                            LocalPlayer:Kick("🛡️ Anti-Ban: Đã ngắt kết nối an toàn vì phát hiện Admin (" .. player.Name .. ") vào server.")
-                        elseif AdminMode == "PAUSE_ALL" then
-                            AutoPlant = false
-                            AutoBuy = false
-                            AutoBuyAll = false
-                            AutoTrash = false
-                            AutoCollect = false
-                            AutoSell = false
-                            setStatus("🛑 Đã tạm dừng tất cả Auto do phát hiện Admin!")
-                        end
-                        break
-                    end
-                end
-            end)
-        end
-    end
-end)
+-- Kiểm tra vật thể có thuộc Plot hoặc Character của người chơi khác không
+local function isOtherPlayerPlot(instance)
+    if not instance or instance == workspace then return false end
+    local myIdStr = tostring(LocalPlayer.UserId)
+    local myName = string.lower(LocalPlayer.Name)
+    local myDisp = string.lower(LocalPlayer.DisplayName)
 
-Players.PlayerAdded:Connect(function(player)
-    if AntiBan then
-        task.wait(1)
-        if isPlayerAdmin(player) then
-            setStatus("🚨 ADMIN VỪA VÀO SERVER: " .. player.Name .. "!")
-            if AdminMode == "SERVER_HOP" then
-                serverHop()
-            elseif AdminMode == "KICK_SELF" then
-                LocalPlayer:Kick("🛡️ Anti-Ban: Phát hiện Admin (" .. player.Name .. ") vừa tham gia server.")
-            elseif AdminMode == "PAUSE_ALL" then
-                AutoPlant = false
-                AutoBuy = false
-                AutoBuyAll = false
-                AutoTrash = false
-                AutoCollect = false
-                AutoSell = false
+    -- 1. Nếu nằm trong Character của người chơi khác -> 100% của người khác
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= LocalPlayer and otherPlayer.Character then
+            if instance:IsDescendantOf(otherPlayer.Character) then
+                return true
             end
         end
     end
-end)
 
--- 🍱 AUTO SELECT FOOD ENGINE
-task.spawn(function()
-    while true do
-        task.wait(0.1)
-        if AutoFood then
-            pcall(function()
-                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                if not playerGui then return end
+    -- 2. Kiểm tra chuỗi tên các cấp cha
+    local cur = instance
+    while cur and cur ~= workspace do
+        local cName = string.lower(cur.Name)
 
-                local targetFoodName = ALL_FOOD_TYPES[SelectedFoodIndex] or "Basic"
-                
-                for _, gui in pairs(playerGui:GetChildren()) do
-                    if gui:IsA("ScreenGui") and gui.Enabled then
-                        local isFoodWindow = false
-                        for _, desc in pairs(gui:GetDescendants()) do
-                            if (desc:IsA("TextLabel") or desc:IsA("TextButton")) and desc.Text ~= "" then
-                                local txt = string.upper(desc.Text)
-                                if string.find(txt, "SELECT FOOD") or string.find(txt, "FEED ") then
-                                    isFoodWindow = true
-                                    break
-                                end
-                            end
-                        end
+        -- Nếu tên chứa thông tin của chính mình -> Thuộc về mình
+        if string.find(cName, myIdStr) or string.find(cName, myName) or string.find(cName, myDisp) then
+            return false
+        end
 
-                        if isFoodWindow then
-                            local targetBtn = nil
-                            local fallbackBtn = nil
-                            local targetLower = string.lower(targetFoodName)
+        -- Nếu tên chứa thông tin của người chơi khác
+        for _, otherPlayer in pairs(Players:GetPlayers()) do
+            if otherPlayer ~= LocalPlayer then
+                local oName = string.lower(otherPlayer.Name)
+                local oDisp = string.lower(otherPlayer.DisplayName)
+                local oId = tostring(otherPlayer.UserId)
 
-                            for _, desc in pairs(gui:GetDescendants()) do
-                                if desc:IsA("TextButton") or desc:IsA("ImageButton") then
-                                    local btnText = ""
-                                    pcall(function() btnText = string.lower(desc.Text) end)
-                                    local btnName = string.lower(desc.Name)
-
-                                    if string.find(btnText, targetLower) or string.find(btnName, targetLower) then
-                                        targetBtn = desc
-                                        break
-                                    end
-
-                                    if string.find(btnText, "basic") or string.find(btnName, "basic") or string.find(btnText, "none") or string.find(btnName, "none") then
-                                        fallbackBtn = desc
-                                    end
-                                end
-                            end
-
-                            local btnToClick = targetBtn or fallbackBtn
-                            if btnToClick then
-                                setStatus("🍱 Đang chọn thức ăn: " .. targetFoodName .. "...")
-                                pcall(function()
-                                    if firesignal then firesignal(btnToClick.MouseButton1Click) end
-                                end)
-                                pcall(function()
-                                    if getconnections then
-                                        for _, conn in pairs(getconnections(btnToClick.MouseButton1Click)) do
-                                            conn:Fire()
-                                        end
-                                    end
-                                end)
-                                pcall(function()
-                                    local VirtualInputManager = game:GetService("VirtualInputManager")
-                                    if btnToClick.AbsolutePosition and btnToClick.AbsoluteSize then
-                                        local pos = btnToClick.AbsolutePosition + (btnToClick.AbsoluteSize / 2)
-                                        VirtualInputManager:SendMouseButtonEvent(pos.X, pos.Y + 36, 0, true, game, 1)
-                                        task.wait(0.02)
-                                        VirtualInputManager:SendMouseButtonEvent(pos.X, pos.Y + 36, 0, false, game, 1)
-                                    end
-                                end)
-                                task.wait(0.3)
-                            end
-                        end
-                    end
+                if (string.find(cName, oName) or string.find(cName, oDisp) or string.find(cName, oId)) then
+                    return true
                 end
-            end)
+            end
+        end
+
+        -- Format Plot_<Id> hoặc Tycoon_<Id>
+        local plotUserId = string.match(cName, "plot_?(%d+)") or string.match(cName, "tycoon_?(%d+)")
+        if plotUserId and plotUserId ~= myIdStr and #plotUserId >= 4 then
+            return true
+        end
+
+        cur = cur.Parent
+    end
+    return false
+end
+
+-- Hàm lấy tọa độ 3D của âm thanh trong không gian
+local function getSoundWorldPosition(sound)
+    if not sound then return nil end
+    local p = sound.Parent
+    if not p then return nil end
+    if p:IsA("BasePart") then
+        return p.Position
+    elseif p:IsA("Attachment") then
+        return p.WorldPosition
+    elseif p:IsA("Model") then
+        if p.PrimaryPart then return p.PrimaryPart.Position end
+        local bp = p:FindFirstChildWhichIsA("BasePart")
+        if bp then return bp.Position end
+    end
+    local ancestorPart = p:FindFirstAncestorWhichIsA("BasePart")
+    if ancestorPart then
+        return ancestorPart.Position
+    end
+    return nil
+end
+
+-- Xác Định Tiếng Sét Nào Của Tài Khoản Hiện Tại Đang Dùng (Account & Plot Audio Filter)
+local function isSoundBelongToMyAccount(sound, padPos, cropStartTime)
+    if not sound or not sound:IsA("Sound") or not sound.IsPlaying then return false end
+
+    -- A. Nếu âm thanh nằm trong Character hoặc PlayerGui của chính tài khoản mình -> 100% của mình
+    if (LocalPlayer.Character and sound:IsDescendantOf(LocalPlayer.Character)) or
+       (LocalPlayer:FindFirstChild("PlayerGui") and sound:IsDescendantOf(LocalPlayer.PlayerGui)) then
+        return true
+    end
+
+    -- B. Nếu âm thanh nằm trong Character của người chơi khác -> Bỏ qua
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= LocalPlayer and otherPlayer.Character and sound:IsDescendantOf(otherPlayer.Character) then
+            return false
         end
     end
-end)
 
--- ═══════════════════════════════════════════════════════════
--- ⚡ MULTI-LAYER LIGHTNING & TIMER DETECTOR ENGINE (DEEP SCAN)
--- ═══════════════════════════════════════════════════════════
-local lightningKeywords = {
-    "lightning", "thunder", "strike", "cloud", "bolt", 
-    "warning", "danger", "beam", "electric", "flash", "spark", 
-    "fire", "timer", "storm", "sky", "weather", "effect", "fx", "target", "indicator", "mark", "zone", "vfx", "eclipse", "ghost"
-}
+    -- C. Nếu âm thanh nằm trong Plot của người chơi khác -> Bỏ qua
+    if isOtherPlayerPlot(sound) then
+        return false
+    end
 
-local function checkLightningThreat(growPadPart, myPlot)
+    -- D. Nếu là âm thanh 3D có vị trí trong không gian:
+    local sPos = getSoundWorldPosition(sound)
+    if sPos and padPos then
+        local horizontalDist = math.sqrt((sPos.X - padPos.X)^2 + (sPos.Z - padPos.Z)^2)
+        -- Nếu vị trí âm thanh cách xa hơn 15 studs -> Tiếng sét của người khác! Bỏ qua!
+        if horizontalDist > 15 then
+            return false
+        end
+        -- Nếu vị trí nằm sát bệ cây của mình (<= 15 studs) -> Tiếng sét đánh vào bệ mình!
+        return true
+    end
+
+    -- E. Kiểm tra thời điểm phát âm thanh: Nếu âm thanh phát trước khi gieo hạt này -> Âm thanh cũ còn sót lại, bỏ qua
+    if cropStartTime and cropStartTime > 0 then
+        if sound.TimePosition and sound.TimePosition > (os.clock() - cropStartTime + 0.25) then
+            return false
+        end
+    end
+
+    -- F. Âm thanh 2D không có tọa độ (toàn server): Kiểm tra Attribute xem có chỉ định tài khoản mình không
+    local targetAttr = sound:GetAttribute("Target") or sound:GetAttribute("Player") or sound:GetAttribute("UserId")
+    if targetAttr then
+        local tStr = string.lower(tostring(targetAttr))
+        if tStr == string.lower(LocalPlayer.Name) or tStr == tostring(LocalPlayer.UserId) then
+            return true
+        else
+            return false
+        end
+    end
+
+    -- Âm thanh 2D chung chung của server đông người -> Bỏ qua để tránh báo động giả!
+    return false
+end
+
+local function checkLightningThreat(growPadPart, myPlot, cropStartTime)
+    myPlot = myPlot or getMyPlot()
     local hasThreat = false
     local timeRemaining = nil
 
-    -- 1. Direct workspace indicators from Spy log: __LightningAudio, GreedyBrainrotsEclipse, __GreedyBrainrotGhosts
-    pcall(function()
-        if workspace:FindFirstChild("__LightningAudio") or workspace:FindFirstChild("GreedyBrainrotsEclipse") or workspace:FindFirstChild("__GreedyBrainrotGhosts") then
-            hasThreat = true
-        end
-    end)
-    if hasThreat then return true, timeRemaining end
+    local lightningKeywords = {
+        "lightning", "strike", "thunder", "storm", "cloud", "bolt",
+        "danger", "threat", "zap", "electric", "shock"
+    }
 
-    -- 2. Gather search targets (GrowPad part, GrowPad Model, Plot)
+    local padPos = nil
+    if growPadPart then
+        padPos = growPadPart:IsA("BasePart") and growPadPart.Position or (growPadPart:IsA("Model") and (growPadPart.PrimaryPart and growPadPart.PrimaryPart.Position or growPadPart:FindFirstChildOfClass("BasePart") and growPadPart:FindFirstChildOfClass("BasePart").Position))
+    end
+    if not padPos and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        padPos = LocalPlayer.Character.HumanoidRootPart.Position
+    end
+    if not padPos then return false, nil end
+
+    -- 1. Kiểm tra TRỰC TIẾP trên GrowPad và Cây của tài khoản mình (Không duyệt bừa Parent chung như Plots)
     local searchTargets = {}
     if growPadPart then
         table.insert(searchTargets, growPadPart)
-        if growPadPart.Parent then
-            table.insert(searchTargets, growPadPart.Parent)
-            if growPadPart.Parent.Parent then
-                table.insert(searchTargets, growPadPart.Parent.Parent)
+        if growPadPart.Parent and growPadPart.Parent:IsA("Model") and growPadPart.Parent ~= workspace and not isOtherPlayerPlot(growPadPart.Parent) then
+            local pName = string.lower(growPadPart.Parent.Name)
+            if not string.find(pName, "plots") and not string.find(pName, "farms") and not string.find(pName, "tycoons") then
+                table.insert(searchTargets, growPadPart.Parent)
             end
         end
     end
-    if myPlot then
-        table.insert(searchTargets, myPlot)
-    end
 
-    -- Scan target attributes and descendants
     for _, targetArea in ipairs(searchTargets) do
+        -- A. Kiểm tra Attributes trên bệ/cây của mình
         pcall(function()
             for attrName, val in pairs(targetArea:GetAttributes()) do
                 local aLow = string.lower(tostring(attrName))
@@ -1376,62 +1454,116 @@ local function checkLightningThreat(growPadPart, myPlot)
                 end
             end
         end)
+        if hasThreat then return true, timeRemaining end
 
-        if hasThreat then break end
-
+        -- B. Kiểm tra Descendants trên bệ/cây của mình
         pcall(function()
             for _, desc in pairs(targetArea:GetDescendants()) do
-                if desc:IsA("TextLabel") or desc:IsA("TextButton") then
-                    local txt = string.lower(desc.Text or "")
-                    for _, kw in ipairs(lightningKeywords) do
-                        if string.find(txt, kw) then
-                            hasThreat = true
-                            local numStr = string.match(txt, "%d+%.?%d*")
-                            if numStr then timeRemaining = tonumber(numStr) end
-                            break
-                        end
-                    end
-                    if not hasThreat and string.match(txt, "^%d+%.?%d*s?$") then
-                        local numVal = tonumber(string.match(txt, "%d+%.?%d*"))
-                        if numVal and numVal <= 10 then
-                            hasThreat = true
-                            timeRemaining = numVal
-                        end
-                    end
-                elseif desc:IsA("ParticleEmitter") or desc:IsA("Beam") or desc:IsA("Highlight") or desc:IsA("Sparkles") or desc:IsA("SelectionBox") or desc:IsA("PointLight") then
-                    hasThreat = true
-                    break
-                end
-
-                if hasThreat then break end
-            end
-        end)
-
-        if hasThreat then break end
-    end
-
-    -- 3. Proximity Vfx scan in Workspace within 40 studs of growPadPart
-    if not hasThreat and growPadPart then
-        pcall(function()
-            local padPos = growPadPart:IsA("BasePart") and growPadPart.Position or (growPadPart:IsA("Model") and growPadPart.PrimaryPart and growPadPart.PrimaryPart.Position)
-            if padPos then
-                local vfxFolder = workspace:FindFirstChild("Vfx") or workspace
-                for _, item in pairs(vfxFolder:GetChildren()) do
-                    local itemPos = item:IsA("BasePart") and item.Position or (item:IsA("Model") and (item.PrimaryPart and item.PrimaryPart.Position or item:FindFirstChildOfClass("BasePart") and item:FindFirstChildOfClass("BasePart").Position))
-                    if itemPos and (itemPos - padPos).Magnitude <= 40 then
-                        hasThreat = true
+                local dName = string.lower(desc.Name)
+                local isLightningName = false
+                for _, kw in ipairs(lightningKeywords) do
+                    if string.find(dName, kw) then
+                        isLightningName = true
                         break
                     end
                 end
+
+                if desc:IsA("TextLabel") or desc:IsA("TextButton") then
+                    local txt = string.lower(desc.Text or "")
+                    if isLightningName then
+                        hasThreat = true
+                        local numStr = string.match(txt, "%d+%.?%d*")
+                        if numStr then timeRemaining = tonumber(numStr) end
+                        break
+                    else
+                        for _, kw in ipairs(lightningKeywords) do
+                            if string.find(txt, kw) then
+                                hasThreat = true
+                                local numStr = string.match(txt, "%d+%.?%d*")
+                                if numStr then timeRemaining = tonumber(numStr) end
+                                break
+                            end
+                        end
+                    end
+                -- BẮT BUỘC: Hạt/Hiệu ứng phát sáng phải có tên chứa từ khóa Sét (tránh nhầm hạt phát sáng của cây)
+                elseif (desc:IsA("ParticleEmitter") or desc:IsA("Beam") or desc:IsA("Highlight") or desc:IsA("Sparkles")) and isLightningName then
+                    hasThreat = true
+                    break
+                -- KIỂM TRA ÂM THANH: Phải xác định tiếng sét thuộc tài khoản của mình
+                elseif desc:IsA("Sound") and isLightningName and isSoundBelongToMyAccount(desc, padPos, cropStartTime) then
+                    hasThreat = true
+                    break
+                end
             end
         end)
+        if hasThreat then return true, timeRemaining end
     end
+
+    -- 2. Quét vật thể Sét / Mây Sét lơ lửng ngay TRÊN ĐẦU BỆ CÂY của mình (Khoảng cách ngang X-Z <= 15 studs)
+    pcall(function()
+        for _, obj in pairs(workspace:GetChildren()) do
+            if (obj:IsA("BasePart") or obj:IsA("Model")) and not isOtherPlayerPlot(obj) then
+                local oName = string.lower(obj.Name)
+                local matchesKeyword = false
+                for _, kw in ipairs(lightningKeywords) do
+                    if string.find(oName, kw) then
+                        matchesKeyword = true
+                        break
+                    end
+                end
+
+                if matchesKeyword then
+                    local oPos = obj:IsA("BasePart") and obj.Position or (obj.PrimaryPart and obj.PrimaryPart.Position or (obj:FindFirstChildWhichIsA("BasePart") and obj:FindFirstChildWhichIsA("BasePart").Position))
+                    if oPos then
+                        local horizontalDist = math.sqrt((oPos.X - padPos.X)^2 + (oPos.Z - padPos.Z)^2)
+                        local verticalDist = oPos.Y - padPos.Y
+
+                        -- Chỉ báo động nếu mây/sét nằm ngay trên đầu bệ cây của mình (ngang <= 15 studs, cao từ -2 đến 45 studs)
+                        if horizontalDist <= 15 and verticalDist >= -2 and verticalDist <= 45 then
+                            hasThreat = true
+                            for _, textObj in pairs(obj:GetDescendants()) do
+                                if textObj:IsA("TextLabel") and textObj.Text ~= "" then
+                                    local numStr = string.match(textObj.Text, "%d+%.?%d*")
+                                    if numStr then
+                                        local n = tonumber(numStr)
+                                        if n and n <= 10 then timeRemaining = n end
+                                    end
+                                end
+                            end
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end)
+    if hasThreat then return true, timeRemaining end
+
+    -- 3. Quét các âm thanh sét đang phát trong Workspace / SoundService định vị theo bệ cây của mình
+    pcall(function()
+        for _, snd in pairs(workspace:GetDescendants()) do
+            if snd:IsA("Sound") and snd.IsPlaying then
+                local sName = string.lower(snd.Name)
+                local isLightningSnd = false
+                for _, kw in ipairs(lightningKeywords) do
+                    if string.find(sName, kw) then
+                        isLightningSnd = true
+                        break
+                    end
+                end
+                if isLightningSnd and isSoundBelongToMyAccount(snd, padPos, cropStartTime) then
+                    hasThreat = true
+                    break
+                end
+            end
+        end
+    end)
 
     return hasThreat, timeRemaining
 end
 
 -- ═══════════════════════════════════════════════════════════
--- 🌱 STRICT PLOT PROXIMITY PROMPT FINDER
+-- 🌱 STRICT & SAFE PLOT PROXIMITY PROMPT FINDER (FIX LOẠI TRỪ TRASH)
 -- ═══════════════════════════════════════════════════════════
 local function getGrowPadPrompts(myPlot)
     myPlot = myPlot or getMyPlot()
@@ -1441,25 +1573,72 @@ local function getGrowPadPrompts(myPlot)
     local harvestPrompt = nil
     local growPadPart = nil
 
-    for _, desc in pairs(myPlot:GetDescendants()) do
-        if desc:IsA("ProximityPrompt") then
-            local act = string.lower(desc.ActionText or "")
-            local obj = string.lower(desc.ObjectText or "")
-            local pName = desc.Parent and string.lower(desc.Parent.Name) or ""
+    -- Từ khóa LOẠI TRỪ tuyệt đối (Nút thu hoạch KHÔNG THỂ là các nút này)
+    local excludeKeywords = {
+        "place", "placement", "đặt", "trash", "bin", "dump", "sell", "buy", "purchase", "mua", 
+        "collect money", "collect cash", "collect coin", "gom tiền", "store", "shop", "vendor",
+        "like", "reward", "group", "gift", "daily", "spin", "wheel", "chest"
+    }
 
-            -- Check if prompt is on Grow Pad / PromptAnchor
-            if string.find(pName, "growpad") or string.find(pName, "promptanchor") or string.find(obj, "grow") or string.find(act, "plant") or string.find(act, "harvest") or string.find(act, "take") or string.find(act, "collect") or string.find(act, "pick") then
-                if string.find(act, "plant") or string.find(act, "sow") then
-                    if not plantPrompt then
-                        plantPrompt = desc
-                        growPadPart = desc.Parent
+    local candidatePrompts = {}
+
+    -- 1. Ưu tiên quét trong myPlot
+    if myPlot then
+        for _, desc in pairs(myPlot:GetDescendants()) do
+            if desc:IsA("ProximityPrompt") then
+                table.insert(candidatePrompts, desc)
+            end
+        end
+    end
+
+    -- 2. Quét thêm các prompt trong bán kính 25 studs quanh nhân vật (chính là bệ cây bạn đang đứng)
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        for _, prompt in pairs(workspace:GetDescendants()) do
+            if prompt:IsA("ProximityPrompt") then
+                local pPart = prompt.Parent
+                local pPos = pPart and (pPart:IsA("BasePart") and pPart.Position or (pPart:IsA("Model") and pPart.PrimaryPart and pPart.PrimaryPart.Position))
+                if pPos and (pPos - hrp.Position).Magnitude <= 25 then
+                    local alreadyIn = false
+                    for _, cp in ipairs(candidatePrompts) do
+                        if cp == prompt then alreadyIn = true break end
                     end
-                else
-                    -- Any other prompt on Grow Pad when a plant is growing is the Harvest/Dodge prompt
-                    if not harvestPrompt then
-                        harvestPrompt = desc
-                        if not growPadPart then growPadPart = desc.Parent end
+                    if not alreadyIn then
+                        table.insert(candidatePrompts, prompt)
                     end
+                end
+            end
+        end
+    end
+
+    for _, desc in ipairs(candidatePrompts) do
+        local act = string.lower(desc.ActionText or "")
+        local obj = string.lower(desc.ObjectText or "")
+        local parentName = desc.Parent and string.lower(desc.Parent.Name) or ""
+
+        -- Kiểm tra xem prompt hoặc tên parent có chứa từ khóa loại trừ không
+        local isExcluded = false
+        for _, kw in ipairs(excludeKeywords) do
+            if string.find(act, kw) or string.find(obj, kw) or string.find(parentName, kw) then
+                isExcluded = true
+                break
+            end
+        end
+
+        if not isExcluded then
+            if string.find(act, "plant") or string.find(act, "sow") or string.find(act, "trồng") then
+                if not plantPrompt then
+                    plantPrompt = desc
+                    growPadPart = desc.Parent
+                end
+            elseif (string.find(act, "collect") or string.find(act, "harvest") or string.find(act, "pull")
+                   or string.find(act, "take") or string.find(act, "pick") or string.find(act, "nhổ")
+                   or string.find(act, "thu hoạch") or string.find(act, "claim") or string.find(act, "gặt"))
+                   and not string.find(act, "place") and not string.find(act, "money") and not string.find(act, "cash") then
+                if not harvestPrompt then
+                    harvestPrompt = desc
+                    growPadPart = desc.Parent
                 end
             end
         end
@@ -1469,221 +1648,241 @@ local function getGrowPadPrompts(myPlot)
 end
 
 -- ═══════════════════════════════════════════════════════════
--- 🌱 AUTO PLANT & LIGHTNING HARVEST ENGINE (ULTRA SPEED 0.02s)
+-- 🛡️ KHIÊN CHỐNG SÉT ĐỘC LẬP 24/7 (STANDALONE LIGHTNING SHIELD)
 -- ═══════════════════════════════════════════════════════════
+local lastThreatDetectedTime = 0
+
+-- 1. Hook DescendantAdded: Bắt sự kiện tạo sét 0ms + Xóa hitbox va chạm
+pcall(function()
+    workspace.DescendantAdded:Connect(function(desc)
+        if not LightningShield247 and not AutoDodgeLightning then return end
+        pcall(function()
+            local name = string.lower(desc.Name)
+            local isLightningVFX = false
+            for _, kw in ipairs(lightningKeywords) do
+                if string.find(name, kw) then
+                    isLightningVFX = true
+                    break
+                end
+            end
+            if isLightningVFX or name == "__lightningaudio" or name == "ghoststrikefx" or name == "greedybrainrotseclipse" then
+                -- Vô hiệu hóa hitbox va chạm sét cục bộ
+                if desc:IsA("BasePart") then
+                    desc.CanTouch = false
+                    desc.CanCollide = false
+                    local tt = desc:FindFirstChildOfClass("TouchTransmitter")
+                    if tt then tt:Destroy() end
+                elseif desc:IsA("Model") then
+                    for _, p in ipairs(desc:GetDescendants()) do
+                        if p:IsA("BasePart") then
+                            p.CanTouch = false
+                            p.CanCollide = false
+                            local tt = p:FindFirstChildOfClass("TouchTransmitter")
+                            if tt then tt:Destroy() end
+                        end
+                    end
+                end
+
+                -- Kiểm tra vị trí nếu nhắm vào Grow Pad của mình
+                local myPlot = getMyPlot()
+                local _, harvestPrompt, growPadPart = getGrowPadPrompts(myPlot)
+                if harvestPrompt and growPadPart then
+                    local padPos = growPadPart:IsA("BasePart") and growPadPart.Position or (growPadPart:IsA("Model") and (growPadPart.PrimaryPart and growPadPart.PrimaryPart.Position or growPadPart:FindFirstChildWhichIsA("BasePart") and growPadPart:FindFirstChildWhichIsA("BasePart").Position))
+                    local isNearPad = true
+                    if padPos and (desc:IsA("BasePart") or (desc:IsA("Model") and desc.PrimaryPart)) then
+                        local dPos = desc:IsA("BasePart") and desc.Position or desc.PrimaryPart.Position
+                        local horizontalDist = math.sqrt((dPos.X - padPos.X)^2 + (dPos.Z - padPos.Z)^2)
+                        if horizontalDist > 25 then
+                            isNearPad = false
+                        end
+                    end
+
+                    if isNearPad then
+                        lastThreatDetectedTime = os.clock()
+                        setStatus("🛡️ [KHIÊN 24/7] BẮT SÉT TỨC THÌ (0ms)! Thu hoạch Brainrot vào Túi Đồ an toàn!")
+                        triggerPrompt(harvestPrompt)
+                    end
+                end
+            end
+        end)
+    end)
+end)
+
+-- 2. Luồng bảo vệ độc lập 24/7 (Kể cả khi TẮT Auto Thu Hoạch / AutoPlant)
 task.spawn(function()
     while true do
-        task.wait(0.02)
+        task.wait(0.01)
+        if LightningShield247 and not AutoPlant then
+            pcall(function()
+                local myPlot = getMyPlot()
+                local _, harvestPrompt, growPadPart = getGrowPadPrompts(myPlot)
+                if harvestPrompt then
+                    local hasLightning, strikeTime = checkLightningThreat(growPadPart, myPlot, 0)
+                    local recentEventThreat = (os.clock() - lastThreatDetectedTime) < 1.5
+
+                    if hasLightning or recentEventThreat then
+                        local info = strikeTime and (" (còn " .. string.format("%.1f", strikeTime) .. "s)") or ""
+                        setStatus("🛡️ [KHIÊN 24/7] SÉT ĐANG NHẮM VÀO BỆ CÂY" .. info .. "! Đã thu hoạch vào Túi Đồ an toàn 100%!")
+                        triggerPrompt(harvestPrompt)
+                        task.wait(0.5)
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- ═══════════════════════════════════════════════════════════
+-- ⚡🌾 AUTO NÉ SÉT & THU HOẠCH ENGINE (HARVEST-ONLY)
+-- ═══════════════════════════════════════════════════════════
+local plantStartTime = 0
+
+task.spawn(function()
+    while true do
+        task.wait(0.01)
         if AutoPlant then
             pcall(function()
                 local myPlot = getMyPlot()
-                local plantPrompt, harvestPrompt, growPadPart = getGrowPadPrompts(myPlot)
+                local _, harvestPrompt, growPadPart = getGrowPadPrompts(myPlot)
 
-                local targetDodgeLead = ALL_DODGE_TIMES[DodgeLeadTimeIndex] or 1.2
+                local targetDodgeLead = ALL_DODGE_TIMES[DodgeLeadTimeIndex] or 2.0
                 local targetMaxGrowthTime = ALL_GROWTH_TIMES[GrowthWaitIndex] or 15
 
                 if harvestPrompt then
+                    if plantStartTime == 0 then
+                        plantStartTime = os.clock()
+                    end
+
                     local elapsedTime = os.clock() - plantStartTime
-                    local hasLightning, strikeTime = checkLightningThreat(growPadPart, myPlot)
+                    local minSafetyGrowthTime = 1.0 -- Thời gian an toàn tối thiểu tránh giật cây ngay khi vừa nảy mầm
+                    local hasLightning, strikeTime = checkLightningThreat(growPadPart, myPlot, plantStartTime)
 
                     if hasLightning and AutoDodgeLightning then
-                        if DodgeSensitivityMode == "INSTANT" then
-                            setStatus("⚡ PHÁT HIỆN SÉT! Thu hoạch NÉ SÉT ngay lập tức!")
-                            triggerPrompt(harvestPrompt)
-                            task.wait(0.4)
+                        if strikeTime and strikeTime > targetDodgeLead then
+                            setStatus("⚡ SÉT CỦA BẠN (còn " .. string.format("%.1f", strikeTime) .. "s)... Chờ né trước " .. targetDodgeLead .. "s")
+                        elseif elapsedTime < minSafetyGrowthTime and (not strikeTime or strikeTime > 0.8) then
+                            -- Vừa gieo mầm dưới 1s: Chờ cây ổn định, chưa vội giật nếu sét chưa đếm ngược khẩn cấp
+                            setStatus("🌱 Cây vừa gieo (" .. string.format("%.1f", elapsedTime) .. "s)... Đang rà soát sét ⚡")
                         else
-                            if strikeTime then
-                                if strikeTime <= targetDodgeLead then
-                                    setStatus("⚡ SÉT SẮP ĐÁNH (còn " .. string.format("%.1f", strikeTime) .. "s)! Thu hoạch né sét!")
-                                    triggerPrompt(harvestPrompt)
-                                    task.wait(0.4)
-                                else
-                                    setStatus("⚡ Cảnh báo sét (còn " .. string.format("%.1f", strikeTime) .. "s)...")
-                                end
-                            else
-                                setStatus("⚡ Cảnh báo sét! Đang né ngay...")
-                                triggerPrompt(harvestPrompt)
-                                task.wait(0.4)
-                            end
+                            -- Nếu có số đếm <= targetDodgeLead hoặc phát hiện âm thanh/mây sét -> Thu hoạch né ngay!
+                            local info = strikeTime and (" (còn " .. string.format("%.1f", strikeTime) .. "s)") or ""
+                            setStatus("⚡ PHÁT HIỆN SÉT ĐÁNH VÀO CÂY BẠN" .. info .. "! Thu hoạch NÉ SÉT ngay!")
+                            triggerPrompt(harvestPrompt)
+                            plantStartTime = 0
+                            task.wait(0.5)
                         end
                     else
                         if elapsedTime >= targetMaxGrowthTime then
-                            setStatus("🌾 Cây đã nuôi đủ " .. math.floor(elapsedTime) .. "s (Size tối đa) -> Thu hoạch!")
+                            setStatus("🌾 Cây đã nuôi đủ " .. math.floor(elapsedTime) .. "s -> Thu hoạch!")
                             triggerPrompt(harvestPrompt)
-                            task.wait(0.4)
+                            plantStartTime = 0
+                            task.wait(0.5)
                         else
-                            setStatus("🌱 Cây đang lớn (" .. math.floor(elapsedTime) .. "s/" .. targetMaxGrowthTime .. "s)... Theo dõi sét ⚡")
+                            setStatus("🌱 Đang nuôi cây lớn (" .. math.floor(elapsedTime) .. "s/" .. targetMaxGrowthTime .. "s)... Theo dõi sét ⚡")
                         end
                     end
-
-                elseif plantPrompt then
-                    setStatus("🌱 Đang trồng 1 hạt giống mới lên Grow Pad...")
-
-                    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                    local bp = LocalPlayer:FindFirstChild("Backpack")
-                    local currentTool = char and char:FindFirstChildOfClass("Tool")
-
-                    if not currentTool or not string.find(string.lower(currentTool.Name), "ungrown") then
-                        if bp then
-                            for _, item in pairs(bp:GetChildren()) do
-                                if item:IsA("Tool") and string.find(string.lower(item.Name), "ungrown") then
-                                    item.Parent = char
-                                    task.wait(0.1)
-                                    break
-                                end
-                            end
-                        end
-                    end
-
-                    triggerPrompt(plantPrompt)
-                    plantStartTime = os.clock()
-                    task.wait(0.5)
                 else
-                    setStatus("🔍 Đang tìm Grow Pad thuộc sân của bạn...")
+                    plantStartTime = 0
+                    setStatus("⏳ Chờ bạn trồng cây... (Auto Né Sét & Thu Hoạch đang ON)")
+                    task.wait(0.2)
                 end
             end)
         end
     end
 end)
 
--- 2. Auto Buy Loop (Independent / OR Filtering Support)
+-- 2. Auto Buy Loop
 task.spawn(function()
     while true do
-        task.wait(BuyDelay + (math.random(1, 5) / 100))
+        task.wait(BuyDelay)
         if AutoBuy or AutoBuyAll then
-            pcall(function()
-                local conveyorFolder = workspace:FindFirstChild("ConveyorOffers") or workspace
-                for _, prompt in pairs(conveyorFolder:GetDescendants()) do
-                    if prompt:IsA("ProximityPrompt") and (prompt.ActionText == "Buy" or (prompt.Parent and prompt.Parent.Name == "ConveyorBrainrot")) then
-                        -- Double safety: ignore if prompt is inside any player plot
-                        if not isOtherPlayerPlot(prompt.Parent) then
-                            if AutoBuyAll then
-                                setStatus("⚡ Mua Tất Cả (Auto Buy ALL)...")
-                                triggerPrompt(prompt)
-                            elseif AutoBuy then
-                                local model = prompt.Parent
-                                local detectedRarity = nil
-                                local detectedForm = "Normal"
-
-                                if model then
-                                    local searchContainer = model.Parent or model
-
-                                    local attrRarity = model:GetAttribute("Rarity") or searchContainer:GetAttribute("Rarity")
-                                    local attrForm = model:GetAttribute("Form") or searchContainer:GetAttribute("Form")
-                                    
-                                    if attrRarity then detectedRarity = tostring(attrRarity) end
-                                    if attrForm then detectedForm = tostring(attrForm) end
-
-                                    for _, desc in pairs(searchContainer:GetDescendants()) do
-                                        if desc:IsA("TextLabel") and desc.Text ~= "" then
-                                            local txt = string.lower(desc.Text)
-                                            for _, rName in ipairs(ALL_RARITIES) do
-                                                if rName ~= "Unknown" and string.find(txt, string.lower(rName)) then
-                                                    detectedRarity = rName
-                                                end
-                                            end
-                                            for _, fName in ipairs(ALL_FORMS) do
-                                                if fName ~= "Normal" and string.find(txt, string.lower(fName)) then
-                                                    detectedForm = fName
-                                                end
-                                            end
-                                        end
-                                    end
-
-                                    if not detectedRarity then
-                                        local fullN = string.lower(model:GetFullName())
-                                        for _, rName in ipairs(ALL_RARITIES) do
-                                            if rName ~= "Unknown" and string.find(fullN, string.lower(rName)) then
-                                                detectedRarity = rName
-                                            end
-                                        end
-                                    end
-                                end
-
-                                local finalRarity = detectedRarity or "Unknown"
-                                local finalForm = detectedForm or "Normal"
-
-                                local rarityMatched = (SelectedRarities[finalRarity] == true)
-                                local formMatched = (SelectedForms[finalForm] == true)
-
-                                local shouldBuy = false
-                                if FilterMode == "INDEPENDENT" then
-                                    -- INDEPENDENT (OR Logic): Buy if Rarity matches OR Form matches!
-                                    shouldBuy = rarityMatched or formMatched
-                                elseif FilterMode == "BOTH" then
-                                    shouldBuy = rarityMatched and formMatched
-                                elseif FilterMode == "RARITY_ONLY" then
-                                    shouldBuy = rarityMatched
-                                elseif FilterMode == "FORM_ONLY" then
-                                    shouldBuy = formMatched
-                                end
-
-                                if shouldBuy then
-                                    setStatus("🛒 Đang mua: [" .. finalRarity .. "] " .. finalForm .. "...")
-                                    triggerPrompt(prompt)
-                                else
-                                    setStatus("🔍 Đã bỏ qua: [" .. finalRarity .. "] " .. finalForm .. " (Không khớp bộ lọc)")
-                                end
-                            end
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- 3. Auto Trash Loop (My Plot Only)
-task.spawn(function()
-    while true do
-        task.wait(TrashDelay + (math.random(1, 5) / 100))
-        if AutoTrash then
             pcall(function()
                 local myPlot = getMyPlot()
                 if not myPlot then return end
 
-                local trashPrompt = nil
-                for _, prompt in pairs(myPlot:GetDescendants()) do
-                    if prompt:IsA("ProximityPrompt") and (prompt.ActionText == "Trash Brainrot" or (prompt.Parent and string.lower(prompt.Parent.Name) == "trash")) then
-                        trashPrompt = prompt
-                        break
+                local conveyorPrompts = {}
+                for _, prompt in pairs(workspace:GetDescendants()) do
+                    if prompt:IsA("ProximityPrompt") then
+                        local act = string.lower(prompt.ActionText or "")
+                        local obj = string.lower(prompt.ObjectText or "")
+                        if string.find(act, "buy") or string.find(act, "purchase") or string.find(obj, "buy") or string.find(act, "mua") then
+                            if not isOtherPlayerPlot(prompt.Parent) then
+                                table.insert(conveyorPrompts, prompt)
+                            end
+                        end
                     end
                 end
 
-                if trashPrompt then
-                    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                    local bp = LocalPlayer:FindFirstChild("Backpack")
-                    local targetTool = nil
-                    local targetRarity = "Unknown"
-
-                    if char then
-                        local equipped = char:FindFirstChildOfClass("Tool")
-                        if equipped and string.find(equipped.Name, "Ungrown") then
-                            local r = detectToolRarity(equipped)
-                            if r ~= "Unknown" and TrashRarities[r] == true then
-                                targetTool = equipped
-                                targetRarity = r
-                            end
+                for _, prompt in ipairs(conveyorPrompts) do
+                    if AutoBuyAll then
+                        setStatus("⚡ Buy ALL: Đang mua vật phẩm...")
+                        triggerPrompt(prompt)
+                    else
+                        local model = prompt.Parent
+                        while model and not model:IsA("Model") and model ~= workspace do
+                            model = model.Parent
                         end
-                    end
 
-                    if not targetTool and bp then
-                        for _, tool in pairs(bp:GetChildren()) do
-                            if tool:IsA("Tool") and string.find(tool.Name, "Ungrown") then
-                                local r = detectToolRarity(tool)
-                                if r ~= "Unknown" and TrashRarities[r] == true then
-                                    tool.Parent = char
-                                    targetTool = tool
-                                    targetRarity = r
-                                    break
+                        if model and model:IsA("Model") then
+                            local detectedRarity = nil
+                            local detectedForm = nil
+
+                            pcall(function()
+                                for attrName, val in pairs(model:GetAttributes()) do
+                                    local aStr = tostring(val)
+                                    for _, rName in ipairs(ALL_RARITIES) do
+                                        if rName ~= "Unknown" and string.find(string.lower(aStr), string.lower(rName)) then
+                                            detectedRarity = rName
+                                        end
+                                    end
+                                    for _, fName in ipairs(ALL_FORMS) do
+                                        if fName ~= "Normal" and string.find(string.lower(aStr), string.lower(fName)) then
+                                            detectedForm = fName
+                                        end
+                                    end
+                                end
+                            end)
+
+                            if not detectedRarity or not detectedForm then
+                                for _, desc in pairs(model:GetDescendants()) do
+                                    if desc:IsA("TextLabel") or desc:IsA("TextButton") or desc:IsA("StringValue") then
+                                        local txt = string.lower(desc:IsA("StringValue") and desc.Value or desc.Text)
+                                        for _, rName in ipairs(ALL_RARITIES) do
+                                            if rName ~= "Unknown" and string.find(txt, string.lower(rName)) then
+                                                detectedRarity = rName
+                                            end
+                                        end
+                                        for _, fName in ipairs(ALL_FORMS) do
+                                            if fName ~= "Normal" and string.find(txt, string.lower(fName)) then
+                                                detectedForm = fName
+                                            end
+                                        end
+                                    end
                                 end
                             end
-                        end
-                    end
 
-                    if targetTool and char and targetTool.Parent == char then
-                        setStatus("🗑️ Đang vứt rác: " .. targetTool.Name .. " [" .. targetRarity .. "]...")
-                        triggerPrompt(trashPrompt)
+                            local finalRarity = detectedRarity or "Unknown"
+                            local finalForm = detectedForm or "Normal"
+
+                            local rarityMatched = (SelectedRarities[finalRarity] == true)
+                            local formMatched = (SelectedForms[finalForm] == true)
+
+                            local shouldBuy = false
+                            if FilterMode == "INDEPENDENT" then
+                                shouldBuy = rarityMatched or formMatched
+                            elseif FilterMode == "BOTH" then
+                                shouldBuy = rarityMatched and formMatched
+                            elseif FilterMode == "RARITY_ONLY" then
+                                shouldBuy = rarityMatched
+                            elseif FilterMode == "FORM_ONLY" then
+                                shouldBuy = formMatched
+                            end
+
+                            if shouldBuy then
+                                setStatus("🛒 Đang mua: [" .. finalRarity .. "] " .. finalForm .. "...")
+                                triggerPrompt(prompt)
+                            end
+                        end
                     end
                 end
             end)
@@ -1691,27 +1890,107 @@ task.spawn(function()
     end
 end)
 
--- 4. Auto Sell & Collect Loop (My Plot Only)
+-- 3. Auto Trash Loop (My Plot Only - ULTRA SAFE: CHỈ VỨT ĐÚNG TOOL TRONG BACKPACK ĐƯỢC CHỌN TRUE)
+task.spawn(function()
+    while true do
+        task.wait(TrashDelay + (math.random(5, 15) / 100))
+        if AutoTrash then
+            pcall(function()
+                -- Kiểm tra xem có Rarity nào được chọn TRUE không, nếu không thì BỎ QUA HOÀN TOÀN!
+                local anyTrashEnabled = false
+                for _, v in pairs(TrashRarities) do
+                    if v == true then anyTrashEnabled = true; break end
+                end
+                if not anyTrashEnabled then return end
+
+                local myPlot = getMyPlot()
+                if not myPlot then return end
+
+                local char = LocalPlayer.Character
+                if not char then return end
+                local bp = LocalPlayer:FindFirstChild("Backpack")
+                if not bp then return end
+
+                -- Tìm Trash Prompt trong Plot chính xác
+                local trashPrompt = nil
+                for _, prompt in pairs(myPlot:GetDescendants()) do
+                    if prompt:IsA("ProximityPrompt") then
+                        local act = string.lower(prompt.ActionText or "")
+                        local pName = prompt.Parent and string.lower(prompt.Parent.Name) or ""
+                        if string.find(act, "trash") or string.find(pName, "trash") or string.find(pName, "bin") then
+                            trashPrompt = prompt
+                            break
+                        end
+                    end
+                end
+                if not trashPrompt then return end
+
+                -- CHỈ quét trong Backpack (KHÔNG bao giờ quét tool đang cầm trên tay)
+                local targetTool = nil
+                local targetRarity = nil
+
+                for _, tool in pairs(bp:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        local r = detectToolRarity(tool)
+                        -- CHỈ vứt khi độ hiếm khác Unknown VÀ được tích TRUE trong TrashRarities
+                        if r ~= "Unknown" and TrashRarities[r] == true then
+                            targetTool = tool
+                            targetRarity = r
+                            break
+                        end
+                    end
+                end
+
+                -- Nếu không có Tool nào thỏa điều kiện lọc → BỎ QUA!
+                if not targetTool or not targetRarity then return end
+
+                -- Lưu lại Tool đang cầm (nếu có)
+                local previousEquipped = char:FindFirstChildOfClass("Tool")
+
+                -- Equip đúng Tool cần vứt từ Backpack sang Character
+                targetTool.Parent = char
+                task.wait(0.2)
+
+                -- Kiểm tra chắc chắn Tool đã được equip đúng
+                if targetTool and targetTool.Parent == char then
+                    setStatus("🗑️ Đang vứt rác: " .. targetTool.Name .. " [" .. targetRarity .. "]")
+                    
+                    -- Kích hoạt prompt vứt rác an toàn
+                    pcall(function()
+                        if fireproximityprompt then
+                            fireproximityprompt(trashPrompt)
+                        end
+                    end)
+                    pcall(function()
+                        trashPrompt:InputHoldBegin()
+                        task.wait(0.05)
+                        trashPrompt:InputHoldEnd()
+                    end)
+                    task.wait(0.3)
+                end
+
+                -- Trả lại Tool trước đó cho người chơi (nếu có)
+                if previousEquipped and previousEquipped.Parent then
+                    pcall(function()
+                        previousEquipped.Parent = char
+                    end)
+                end
+            end)
+        end
+    end
+end)
+
+-- 4. Auto Collect Money Loop (CHỈ gom tiền, tuyệt đối không đụng nút vứt rác)
 task.spawn(function()
     while true do
         task.wait(0.5)
         local myPlot = getMyPlot()
-        if AutoSell and myPlot then
-            pcall(function()
-                for _, prompt in pairs(myPlot:GetDescendants()) do
-                    if prompt:IsA("ProximityPrompt") and (prompt.ActionText == "Trash Brainrot" or prompt.ActionText == "Sell") then
-                        setStatus("Đang bán (Auto Sell)...")
-                        triggerPrompt(prompt)
-                    end
-                end
-            end)
-        end
         if AutoCollect and myPlot then
             pcall(function()
                 for _, prompt in pairs(myPlot:GetDescendants()) do
-                    if prompt:IsA("ProximityPrompt") and (prompt.ActionText == "Claim" or prompt.ActionText == "Collect" or string.find(string.lower(prompt.ActionText or ""), "buy")) then
-                        if prompt.Parent and prompt.Parent.Name == "CollectAllSign" then
-                            setStatus("💵 Đang thu hoạch tiền (Collect All)...")
+                    if prompt:IsA("ProximityPrompt") then
+                        local act = string.lower(prompt.ActionText or "")
+                        if string.find(act, "collect money") or string.find(act, "collect cash") or string.find(act, "gom tiền") then
                             triggerPrompt(prompt)
                         end
                     end
@@ -1721,34 +2000,23 @@ task.spawn(function()
     end
 end)
 
--- ═══════════════════════════════════════════════════════════
--- 🛡️ DUAL-LAYER ANTI-AFK ENGINE (100% BULLETPROOF)
--- ═══════════════════════════════════════════════════════════
-
--- 1. Native Idled Event Reaction
+-- 5. DUAL-LAYER ANTI-AFK ENGINE
 LocalPlayer.Idled:Connect(function()
     if AntiAFK then
-        pcall(function()
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.new(0, 0))
-            VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-            task.wait(0.5)
-            VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-        end)
+        VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+        task.wait(1)
+        VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
     end
 end)
 
--- 2. Proactive Periodic Heartbeat (Every 3 minutes)
 task.spawn(function()
     while true do
-        task.wait(180) -- Trigger input every 3 minutes
+        task.wait(180)
         if AntiAFK then
             pcall(function()
                 VirtualUser:CaptureController()
-                VirtualUser:ClickButton2(Vector2.new(0, 0))
+                VirtualUser:ClickButton2(Vector2.new(100, 100))
             end)
         end
     end
 end)
-
-setStatus("Đã khởi tạo V26 - Chế Độ Lọc Mua Độc Lập Mặc Định Active!")

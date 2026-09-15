@@ -589,24 +589,24 @@ IconStroke.Parent = ToggleIcon
 
 makeDraggable(ToggleIcon)
 
--- Main Hub Frame
+-- Main Hub Frame (Modern Sleek HUD V28)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 300, 0, 460)
-MainFrame.Position = UDim2.new(1, -310, 0.06, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
+MainFrame.Size = UDim2.new(0, 330, 0, 500)
+MainFrame.Position = UDim2.new(1, -345, 0.05, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(14, 17, 24)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Visible = false
 MainFrame.Parent = ScreenGui
 
 local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.CornerRadius = UDim.new(0, 14)
 MainCorner.Parent = MainFrame
 
 local MainStroke = Instance.new("UIStroke")
 MainStroke.Color = Color3.fromRGB(0, 255, 170)
-MainStroke.Thickness = 1.5
+MainStroke.Thickness = 1.6
 MainStroke.Parent = MainFrame
 
 ToggleIcon.MouseButton1Click:Connect(function()
@@ -615,41 +615,53 @@ end)
 
 -- Header
 local Header = Instance.new("Frame")
-Header.Size = UDim2.new(1, 0, 0, 38)
-Header.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+Header.Size = UDim2.new(1, 0, 0, 46)
+Header.BackgroundColor3 = Color3.fromRGB(20, 25, 36)
 Header.BorderSizePixel = 0
 Header.Parent = MainFrame
 
 local HeaderCorner = Instance.new("UICorner")
-HeaderCorner.CornerRadius = UDim.new(0, 12)
+HeaderCorner.CornerRadius = UDim.new(0, 14)
 HeaderCorner.Parent = Header
 
 makeDraggable(MainFrame, Header)
 
+-- Header Title & Subtitle
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -70, 1, 0)
-Title.Position = UDim2.new(0, 10, 0, 0)
+Title.Size = UDim2.new(1, -76, 0, 22)
+Title.Position = UDim2.new(0, 12, 0, 4)
 Title.BackgroundTransparency = 1
-Title.Text = "🍱 BRAINROTS HUB V27.2 (ULTRA SAFE)"
+Title.Text = "🧠 GREEDY BRAINROTS V28"
 Title.TextColor3 = Color3.fromRGB(0, 255, 170)
-Title.TextSize = 10
-Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 13
+Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = Header
+
+local SubTitle = Instance.new("TextLabel")
+SubTitle.Size = UDim2.new(1, -76, 0, 14)
+SubTitle.Position = UDim2.new(0, 12, 0, 26)
+SubTitle.BackgroundTransparency = 1
+SubTitle.Text = "⚡ Supreme Rarity & Khiên Sét 24/7"
+SubTitle.TextColor3 = Color3.fromRGB(140, 155, 180)
+SubTitle.TextSize = 10
+SubTitle.Font = Enum.Font.Gotham
+SubTitle.TextXAlignment = Enum.TextXAlignment.Left
+SubTitle.Parent = Header
 
 local MiniBtn = Instance.new("TextButton")
 MiniBtn.Name = "MiniBtn"
 MiniBtn.Size = UDim2.new(0, 26, 0, 26)
-MiniBtn.Position = UDim2.new(1, -58, 0, 6)
-MiniBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 90)
-MiniBtn.Text = "➖"
-MiniBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-MiniBtn.Font = Enum.Font.SourceSansBold
-MiniBtn.TextSize = 13
+MiniBtn.Position = UDim2.new(1, -60, 0, 10)
+MiniBtn.BackgroundColor3 = Color3.fromRGB(40, 48, 68)
+MiniBtn.Text = "−"
+MiniBtn.TextColor3 = Color3.fromRGB(210, 225, 250)
+MiniBtn.Font = Enum.Font.GothamBold
+MiniBtn.TextSize = 15
 MiniBtn.Parent = Header
 
 local MiniCorner = Instance.new("UICorner")
-MiniCorner.CornerRadius = UDim.new(0, 6)
+MiniCorner.CornerRadius = UDim.new(0, 7)
 MiniCorner.Parent = MiniBtn
 
 MiniBtn.MouseButton1Click:Connect(function() 
@@ -659,452 +671,454 @@ end)
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Name = "CloseBtn"
 CloseBtn.Size = UDim2.new(0, 26, 0, 26)
-CloseBtn.Position = UDim2.new(1, -28, 0, 6)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-CloseBtn.Text = "X"
+CloseBtn.Position = UDim2.new(1, -30, 0, 10)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 65)
+CloseBtn.Text = "✕"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.Font = Enum.Font.SourceSansBold
-CloseBtn.TextSize = 12
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 13
 CloseBtn.Parent = Header
 
 local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0, 6)
+CloseCorner.CornerRadius = UDim.new(0, 7)
 CloseCorner.Parent = CloseBtn
 
 CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
 
+-- Modern Scrollable Body
 local Scroll = Instance.new("ScrollingFrame")
-Scroll.Size = UDim2.new(1, -12, 1, -76)
-Scroll.Position = UDim2.new(0, 6, 0, 42)
+Scroll.Size = UDim2.new(1, -16, 1, -84)
+Scroll.Position = UDim2.new(0, 8, 0, 50)
 Scroll.BackgroundTransparency = 1
-Scroll.ScrollBarThickness = 4
-Scroll.CanvasSize = UDim2.new(0, 0, 0, 950)
+Scroll.ScrollBarThickness = 3
+Scroll.ScrollBarImageColor3 = Color3.fromRGB(0, 255, 170)
+Scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 Scroll.Parent = MainFrame
 
 local Layout = Instance.new("UIListLayout")
 Layout.SortOrder = Enum.SortOrder.LayoutOrder
-Layout.Padding = UDim.new(0, 7)
+Layout.Padding = UDim.new(0, 6)
 Layout.Parent = Scroll
 
-local function createToggleButton(text, color, onClick)
+-- 🎨 Component 1: Section Header with glowing left pill
+local function createSectionHeader(titleText, accentColor)
+    local col = accentColor or Color3.fromRGB(0, 255, 170)
+
+    local secFrame = Instance.new("Frame")
+    secFrame.Size = UDim2.new(1, 0, 0, 28)
+    secFrame.BackgroundTransparency = 1
+    secFrame.Parent = Scroll
+
+    local bar = Instance.new("Frame")
+    bar.Size = UDim2.new(0, 3, 0, 16)
+    bar.Position = UDim2.new(0, 2, 0.5, -8)
+    bar.BackgroundColor3 = col
+    bar.BorderSizePixel = 0
+    bar.Parent = secFrame
+
+    local bCorn = Instance.new("UICorner")
+    bCorn.CornerRadius = UDim.new(1, 0)
+    bCorn.Parent = bar
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -18, 1, 0)
+    lbl.Position = UDim2.new(0, 12, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = titleText
+    lbl.TextColor3 = col
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 11
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = secFrame
+
+    return secFrame
+end
+
+-- 🎨 Component 2: Modern Toggle Card with embedded Status Badge
+local function createToggleButton(titleText, defaultState, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 34)
-    btn.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
-    btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(220, 220, 240)
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 12
+    btn.Size = UDim2.new(1, 0, 0, 36)
+    btn.BackgroundColor3 = defaultState and Color3.fromRGB(18, 38, 30) or Color3.fromRGB(20, 25, 34)
+    btn.AutoButtonColor = false
+    btn.Text = ""
     btn.Parent = Scroll
 
     local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, 7)
+    c.CornerRadius = UDim.new(0, 8)
     c.Parent = btn
 
     local s = Instance.new("UIStroke")
-    s.Color = Color3.fromRGB(45, 45, 60)
-    s.Thickness = 1
+    s.Color = defaultState and Color3.fromRGB(0, 255, 170) or Color3.fromRGB(38, 46, 62)
+    s.Thickness = 1.2
     s.Parent = btn
 
+    local titleLbl = Instance.new("TextLabel")
+    titleLbl.Size = UDim2.new(1, -72, 1, 0)
+    titleLbl.Position = UDim2.new(0, 10, 0, 0)
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.Text = titleText
+    titleLbl.TextColor3 = defaultState and Color3.fromRGB(240, 255, 250) or Color3.fromRGB(180, 192, 210)
+    titleLbl.Font = Enum.Font.GothamMedium
+    titleLbl.TextSize = 11
+    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+    titleLbl.Parent = btn
+
+    local badge = Instance.new("Frame")
+    badge.Size = UDim2.new(0, 52, 0, 22)
+    badge.Position = UDim2.new(1, -60, 0.5, -11)
+    badge.BackgroundColor3 = defaultState and Color3.fromRGB(0, 200, 130) or Color3.fromRGB(35, 42, 56)
+    badge.Parent = btn
+
+    local badgeCorner = Instance.new("UICorner")
+    badgeCorner.CornerRadius = UDim.new(0, 6)
+    badgeCorner.Parent = badge
+
+    local badgeText = Instance.new("TextLabel")
+    badgeText.Size = UDim2.new(1, 0, 1, 0)
+    badgeText.BackgroundTransparency = 1
+    badgeText.Text = defaultState and "BẬT" or "TẮT"
+    badgeText.TextColor3 = defaultState and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(130, 142, 165)
+    badgeText.Font = Enum.Font.GothamBold
+    badgeText.TextSize = 10
+    badgeText.Parent = badge
+
+    local currentState = defaultState
     btn.MouseButton1Click:Connect(function()
-        onClick(btn, s)
+        currentState = not currentState
+        btn.BackgroundColor3 = currentState and Color3.fromRGB(18, 38, 30) or Color3.fromRGB(20, 25, 34)
+        s.Color = currentState and Color3.fromRGB(0, 255, 170) or Color3.fromRGB(38, 46, 62)
+        titleLbl.TextColor3 = currentState and Color3.fromRGB(240, 255, 250) or Color3.fromRGB(180, 192, 210)
+        badge.BackgroundColor3 = currentState and Color3.fromRGB(0, 200, 130) or Color3.fromRGB(35, 42, 56)
+        badgeText.Text = currentState and "BẬT" or "TẮT"
+        badgeText.TextColor3 = currentState and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(130, 142, 165)
+        callback(currentState, btn, s)
     end)
+
     return btn
 end
 
--- 1. Anti-Ban Toggle
-createToggleButton("🛡️ Anti-Ban & Admin Detector: ON", Color3.fromRGB(0, 255, 170), function(btn, stroke)
-    AntiBan = not AntiBan
-    if AntiBan then
-        btn.Text = "🛡️ Anti-Ban & Admin Detector: ON"
-        btn.TextColor3 = Color3.fromRGB(0, 255, 170)
-        stroke.Color = Color3.fromRGB(0, 255, 170)
-    else
-        btn.Text = "🛡️ Anti-Ban & Admin Detector: OFF"
-        btn.TextColor3 = Color3.fromRGB(220, 220, 240)
-        stroke.Color = Color3.fromRGB(45, 45, 60)
-    end
+-- 🎨 Component 3: Modern Action/Setting Card with Value Badge
+local function createActionButton(titleText, valueText, accentColor, callback)
+    local col = accentColor or Color3.fromRGB(255, 190, 80)
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 36)
+    btn.BackgroundColor3 = Color3.fromRGB(20, 25, 34)
+    btn.AutoButtonColor = false
+    btn.Text = ""
+    btn.Parent = Scroll
+
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, 8)
+    c.Parent = btn
+
+    local s = Instance.new("UIStroke")
+    s.Color = Color3.fromRGB(38, 46, 62)
+    s.Thickness = 1
+    s.Parent = btn
+
+    local titleLbl = Instance.new("TextLabel")
+    titleLbl.Size = UDim2.new(1, -20, 0, 18)
+    titleLbl.Position = UDim2.new(0, 10, 0, 2)
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.Text = titleText
+    titleLbl.TextColor3 = col
+    titleLbl.Font = Enum.Font.GothamBold
+    titleLbl.TextSize = 11
+    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+    titleLbl.Parent = btn
+
+    local valLbl = Instance.new("TextLabel")
+    valLbl.Size = UDim2.new(1, -20, 0, 15)
+    valLbl.Position = UDim2.new(0, 10, 0, 18)
+    valLbl.BackgroundTransparency = 1
+    valLbl.Text = valueText
+    valLbl.TextColor3 = Color3.fromRGB(180, 195, 215)
+    valLbl.Font = Enum.Font.Gotham
+    valLbl.TextSize = 10
+    valLbl.TextXAlignment = Enum.TextXAlignment.Left
+    valLbl.Parent = btn
+
+    btn.MouseButton1Click:Connect(function()
+        callback(btn, valLbl, s)
+    end)
+
+    return btn, valLbl
+end
+
+-- ═══════════════════════════════════════════════════════════
+-- SECTION 1: 🛡️ BẢO VỆ & NÉ SÉT 24/7
+-- ═══════════════════════════════════════════════════════════
+createSectionHeader("🛡️ BẢO VỆ & NÉ SÉT 24/7", Color3.fromRGB(0, 255, 180))
+
+-- 1. Khiên Chống Sét Độc Lập 24/7
+createToggleButton("🛡️ Khiên Chống Sét 24/7 (Độc Lập)", LightningShield247, function(state)
+    LightningShield247 = state
+    setStatus(state and "Đã BẬT Khiên Chống Sét Độc Lập 24/7!" or "Đã TẮT Khiên Chống Sét 24/7!")
 end)
 
--- 2. Admin Reaction Mode Button
-local btnAdminMode = Instance.new("TextButton")
-btnAdminMode.Size = UDim2.new(1, 0, 0, 32)
-btnAdminMode.BackgroundColor3 = Color3.fromRGB(35, 35, 52)
-btnAdminMode.Text = "🚨 Khi Thấy Admin: [ Đổi Server Khác ]"
-btnAdminMode.TextColor3 = Color3.fromRGB(255, 170, 0)
-btnAdminMode.Font = Enum.Font.SourceSansBold
-btnAdminMode.TextSize = 11
-btnAdminMode.Parent = Scroll
-local amCorner = Instance.new("UICorner")
-amCorner.CornerRadius = UDim.new(0, 7)
-amCorner.Parent = btnAdminMode
-
-btnAdminMode.MouseButton1Click:Connect(function()
-    if AdminMode == "SERVER_HOP" then
-        AdminMode = "KICK_SELF"
-        btnAdminMode.Text = "🚨 Khi Thấy Admin: [ Tự Ngắt Kết Nối ]"
-        btnAdminMode.TextColor3 = Color3.fromRGB(255, 80, 80)
-    elseif AdminMode == "KICK_SELF" then
-        AdminMode = "PAUSE_ALL"
-        btnAdminMode.Text = "🚨 Khi Thấy Admin: [ Tạm Dừng Tất Cả ]"
-        btnAdminMode.TextColor3 = Color3.fromRGB(255, 220, 0)
-    else
-        AdminMode = "SERVER_HOP"
-        btnAdminMode.Text = "🚨 Khi Thấy Admin: [ Đổi Server Khác ]"
-        btnAdminMode.TextColor3 = Color3.fromRGB(255, 170, 0)
-    end
+-- 2. Auto Né Sét Cây
+createToggleButton("⚡ Auto Né Sét Cây", AutoDodgeLightning, function(state)
+    AutoDodgeLightning = state
+    setStatus(state and "Đã BẬT Auto Né Sét Cây!" or "Đã TẮT Auto Né Sét Cây!")
 end)
 
--- 3. Auto Né Sét & Thu Hoạch Button
-createToggleButton("⚡🌾 Auto Né Sét & Thu Hoạch: OFF", Color3.fromRGB(0, 255, 170), function(btn, stroke)
-    AutoPlant = not AutoPlant
-    if AutoPlant then
-        btn.Text = "⚡🌾 Auto Né Sét & Thu Hoạch: ON"
-        btn.TextColor3 = Color3.fromRGB(0, 255, 170)
-        stroke.Color = Color3.fromRGB(0, 255, 170)
-    else
-        btn.Text = "⚡🌾 Auto Né Sét & Thu Hoạch: OFF"
-        btn.TextColor3 = Color3.fromRGB(220, 220, 240)
-        stroke.Color = Color3.fromRGB(45, 45, 60)
-    end
-end)
-
--- 🛡️ 4. Khiên Chống Sét Độc Lập 24/7 Toggle
-createToggleButton("🛡️ Khiên Chống Sét 24/7: ON", Color3.fromRGB(0, 255, 180), function(btn, stroke)
-    LightningShield247 = not LightningShield247
-    if LightningShield247 then
-        btn.Text = "🛡️ Khiên Chống Sét 24/7: ON"
-        btn.TextColor3 = Color3.fromRGB(0, 255, 180)
-        stroke.Color = Color3.fromRGB(0, 255, 180)
-        setStatus("🛡️ Đã BẬT Khiên Chống Sét Độc Lập 24/7 (Bảo vệ mọi lúc)!")
-    else
-        btn.Text = "🛡️ Khiên Chống Sét 24/7: OFF"
-        btn.TextColor3 = Color3.fromRGB(220, 220, 240)
-        stroke.Color = Color3.fromRGB(45, 45, 60)
-        setStatus("⚠️ Đã TẮT Khiên Chống Sét 24/7!")
-    end
-end)
-
--- ⚡ 5. Auto Dodge Lightning Toggle
-createToggleButton("⚡ Auto Né Sét Cây: ON", Color3.fromRGB(255, 220, 0), function(btn, stroke)
-    AutoDodgeLightning = not AutoDodgeLightning
-    if AutoDodgeLightning then
-        btn.Text = "⚡ Auto Né Sét Cây: ON"
-        btn.TextColor3 = Color3.fromRGB(255, 220, 0)
-        stroke.Color = Color3.fromRGB(255, 220, 0)
-    else
-        btn.Text = "⚡ Auto Né Sét Cây: OFF"
-        btn.TextColor3 = Color3.fromRGB(220, 220, 240)
-        stroke.Color = Color3.fromRGB(45, 45, 60)
-    end
-end)
-
--- ⚡ 5. Dodge Sensitivity Toggle Mode
-local btnDodgeMode = Instance.new("TextButton")
-btnDodgeMode.Size = UDim2.new(1, 0, 0, 32)
-btnDodgeMode.BackgroundColor3 = Color3.fromRGB(20, 35, 50)
-btnDodgeMode.Text = "⚡ Né Sét: [ Theo Giây Đếm Chờ Size ]"
-btnDodgeMode.TextColor3 = Color3.fromRGB(100, 220, 255)
-btnDodgeMode.Font = Enum.Font.SourceSansBold
-btnDodgeMode.TextSize = 11
-btnDodgeMode.Parent = Scroll
-local dmCorner = Instance.new("UICorner")
-dmCorner.CornerRadius = UDim.new(0, 7)
-dmCorner.Parent = btnDodgeMode
-
-btnDodgeMode.MouseButton1Click:Connect(function()
+-- 3. Chế Độ Né Sét
+local btnDodgeMode, lblDodgeMode = createActionButton("⚡ Chế Độ Né Sét", "Chế độ: [ " .. (DodgeSensitivityMode == "INSTANT" and "Siêu Nhạy Cảm (0ms)" or "Theo Giây Đếm Chờ Size") .. " ]", Color3.fromRGB(100, 220, 255), function(btn, lbl)
     if DodgeSensitivityMode == "INSTANT" then
         DodgeSensitivityMode = "TIMED"
-        btnDodgeMode.Text = "⚡ Né Sét: [ Theo Giây Đếm Chờ Size ]"
-        btnDodgeMode.TextColor3 = Color3.fromRGB(100, 220, 255)
-        btnDodgeMode.BackgroundColor3 = Color3.fromRGB(20, 35, 50)
+        lbl.Text = "Chế độ: [ Theo Giây Đếm Chờ Size ]"
+        lbl.TextColor3 = Color3.fromRGB(100, 220, 255)
     else
         DodgeSensitivityMode = "INSTANT"
-        btnDodgeMode.Text = "⚡ Né Sét: [ Siêu Nhạy Cảm (Né Ngay Lập Tức) ]"
-        btnDodgeMode.TextColor3 = Color3.fromRGB(255, 200, 50)
-        btnDodgeMode.BackgroundColor3 = Color3.fromRGB(50, 35, 15)
+        lbl.Text = "Chế độ: [ Siêu Nhạy Cảm (0ms) ]"
+        lbl.TextColor3 = Color3.fromRGB(255, 200, 50)
     end
 end)
 
--- ⚡ 6. Adjustable Dodge Lead Time Button
-local btnDodgeTiming = Instance.new("TextButton")
-btnDodgeTiming.Size = UDim2.new(1, 0, 0, 32)
-btnDodgeTiming.BackgroundColor3 = Color3.fromRGB(45, 40, 20)
-btnDodgeTiming.Text = "⚡ Thu Hoạch Trước Khi Sét Đánh: [ ~" .. tostring(ALL_DODGE_TIMES[DodgeLeadTimeIndex]) .. " Giây ]"
-btnDodgeTiming.TextColor3 = Color3.fromRGB(255, 220, 100)
-btnDodgeTiming.Font = Enum.Font.SourceSansBold
-btnDodgeTiming.TextSize = 11
-btnDodgeTiming.Parent = Scroll
-local dtCorner = Instance.new("UICorner")
-dtCorner.CornerRadius = UDim.new(0, 7)
-dtCorner.Parent = btnDodgeTiming
-
-btnDodgeTiming.MouseButton1Click:Connect(function()
+-- 4. Căn Giờ Né Trước Sét
+local btnDodgeTiming, lblDodgeTiming = createActionButton("⚡ Căn Giờ Né Trước Sét", "Thời gian né trước: [ ~" .. tostring(ALL_DODGE_TIMES[DodgeLeadTimeIndex]) .. " Giây ]", Color3.fromRGB(255, 220, 100), function(btn, lbl)
     DodgeLeadTimeIndex = DodgeLeadTimeIndex + 1
     if DodgeLeadTimeIndex > #ALL_DODGE_TIMES then DodgeLeadTimeIndex = 1 end
-    btnDodgeTiming.Text = "⚡ Thu Hoạch Trước Khi Sét Đánh: [ ~" .. tostring(ALL_DODGE_TIMES[DodgeLeadTimeIndex]) .. " Giây ]"
+    lbl.Text = "Thời gian né trước: [ ~" .. tostring(ALL_DODGE_TIMES[DodgeLeadTimeIndex]) .. " Giây ]"
 end)
 
--- ⏱️ 7. Adjustable Max Growth Wait Time Button
-local btnGrowthTime = Instance.new("TextButton")
-btnGrowthTime.Size = UDim2.new(1, 0, 0, 32)
-btnGrowthTime.BackgroundColor3 = Color3.fromRGB(20, 45, 30)
-btnGrowthTime.Text = "⏱️ Thời Gian Chờ Cây Lớn: [ 15 Giây ]"
-btnGrowthTime.TextColor3 = Color3.fromRGB(100, 255, 180)
-btnGrowthTime.Font = Enum.Font.SourceSansBold
-btnGrowthTime.TextSize = 11
-btnGrowthTime.Parent = Scroll
-local gtCorner = Instance.new("UICorner")
-gtCorner.CornerRadius = UDim.new(0, 7)
-gtCorner.Parent = btnGrowthTime
-
-btnGrowthTime.MouseButton1Click:Connect(function()
-    GrowthWaitIndex = GrowthWaitIndex + 1
-    if GrowthWaitIndex > #ALL_GROWTH_TIMES then GrowthWaitIndex = 1 end
-    btnGrowthTime.Text = "⏱️ Thời Gian Chờ Cây Lớn: [ " .. tostring(ALL_GROWTH_TIMES[GrowthWaitIndex]) .. " Giây ]"
+-- 5. Anti-Ban & Quét Admin
+createToggleButton("🛡️ Anti-Ban & Quét Admin", AntiBan, function(state)
+    AntiBan = state
+    setStatus(state and "Đã BẬT Anti-Ban & Admin Detector!" or "Đã TẮT Anti-Ban!")
 end)
 
--- 🍱 8. Auto Select Food Toggle
-createToggleButton("🍱 Auto Select Food (Tự Chọn Đồ Ăn): ON", Color3.fromRGB(255, 180, 0), function(btn, stroke)
-    AutoFood = not AutoFood
-    if AutoFood then
-        btn.Text = "🍱 Auto Select Food (Tự Chọn Đồ Ăn): ON"
-        btn.TextColor3 = Color3.fromRGB(255, 180, 0)
-        stroke.Color = Color3.fromRGB(255, 180, 0)
+-- 6. Phản Ứng Khi Thấy Admin
+local btnAdminMode, lblAdminMode = createActionButton("🚨 Phản Ứng Khi Thấy Admin", "Hành động: [ Đổi Server Khác ]", Color3.fromRGB(255, 140, 60), function(btn, lbl)
+    if AdminMode == "SERVER_HOP" then
+        AdminMode = "KICK_SELF"
+        lbl.Text = "Hành động: [ Tự Ngắt Kết Nối ]"
+    elseif AdminMode == "KICK_SELF" then
+        AdminMode = "PAUSE_ALL"
+        lbl.Text = "Hành động: [ Tạm Dừng Tất Cả ]"
     else
-        btn.Text = "🍱 Auto Select Food (Tự Chọn Đồ Ăn): OFF"
-        btn.TextColor3 = Color3.fromRGB(220, 220, 240)
-        stroke.Color = Color3.fromRGB(45, 45, 60)
+        AdminMode = "SERVER_HOP"
+        lbl.Text = "Hành động: [ Đổi Server Khác ]"
     end
 end)
 
--- 🍕 9. Select Food Type Button
-local btnFoodType = Instance.new("TextButton")
-btnFoodType.Size = UDim2.new(1, 0, 0, 32)
-btnFoodType.BackgroundColor3 = Color3.fromRGB(45, 35, 20)
-btnFoodType.Text = "🍕 Chọn Đồ Ăn: [ " .. ALL_FOOD_DISPLAYS[SelectedFoodIndex] .. " ]"
-btnFoodType.TextColor3 = Color3.fromRGB(255, 220, 100)
-btnFoodType.Font = Enum.Font.SourceSansBold
-btnFoodType.TextSize = 11
-btnFoodType.Parent = Scroll
-local ftCorner = Instance.new("UICorner")
-ftCorner.CornerRadius = UDim.new(0, 7)
-ftCorner.Parent = btnFoodType
+-- ═══════════════════════════════════════════════════════════
+-- SECTION 2: 🌱 TRỒNG & THU HOẠCH CÂY
+-- ═══════════════════════════════════════════════════════════
+createSectionHeader("🌱 TRỒNG & THU HOẠCH CÂY", Color3.fromRGB(0, 255, 140))
 
-btnFoodType.MouseButton1Click:Connect(function()
-    SelectedFoodIndex = SelectedFoodIndex + 1
-    if SelectedFoodIndex > #ALL_FOOD_TYPES then SelectedFoodIndex = 1 end
-    btnFoodType.Text = "🍕 Chọn Đồ Ăn: [ " .. ALL_FOOD_DISPLAYS[SelectedFoodIndex] .. " ]"
+-- 7. Auto Né Sét & Thu Hoạch
+createToggleButton("⚡🌾 Auto Né Sét & Thu Hoạch", AutoPlant, function(state)
+    AutoPlant = state
+    setStatus(state and "Đã BẬT Auto Né Sét & Thu Hoạch!" or "Đã TẮT Auto Thu Hoạch.")
 end)
 
--- 🌾 10. Instant Harvest All Button
+-- 8. Thời Gian Chờ Nuôi Cây
+local btnGrowthTime, lblGrowthTime = createActionButton("⏱️ Thời Gian Chờ Nuôi Cây", "Nuôi size tối đa: [ " .. tostring(ALL_GROWTH_TIMES[GrowthWaitIndex]) .. " Giây ]", Color3.fromRGB(100, 255, 180), function(btn, lbl)
+    GrowthWaitIndex = GrowthWaitIndex + 1
+    if GrowthWaitIndex > #ALL_GROWTH_TIMES then GrowthWaitIndex = 1 end
+    lbl.Text = "Nuôi size tối đa: [ " .. tostring(ALL_GROWTH_TIMES[GrowthWaitIndex]) .. " Giây ]"
+end)
+
+-- 9. Auto Chọn Đồ Ăn
+createToggleButton("🍱 Auto Chọn Đồ Ăn (Food)", AutoFood, function(state)
+    AutoFood = state
+    setStatus(state and "Đã BẬT Auto Select Food!" or "Đã TẮT Auto Select Food.")
+end)
+
+-- 10. Loại Đồ Ăn Cho Cây
+local btnFoodType, lblFoodType = createActionButton("🍕 Loại Đồ Ăn Cho Cây", "Đang chọn: [ " .. ALL_FOOD_DISPLAYS[SelectedFoodIndex] .. " ]", Color3.fromRGB(255, 180, 50), function(btn, lbl)
+    SelectedFoodIndex = SelectedFoodIndex + 1
+    if SelectedFoodIndex > #ALL_FOOD_TYPES then SelectedFoodIndex = 1 end
+    lbl.Text = "Đang chọn: [ " .. ALL_FOOD_DISPLAYS[SelectedFoodIndex] .. " ]"
+end)
+
+-- 11. Nút Thu Hoạch Tất Cả Ngay Lập Tức
 local btnHarvestNow = Instance.new("TextButton")
-btnHarvestNow.Size = UDim2.new(1, 0, 0, 32)
-btnHarvestNow.BackgroundColor3 = Color3.fromRGB(0, 120, 180)
-btnHarvestNow.Text = "🌾 Harvest Tất Cả Cây Ngay Lập Tức!"
+btnHarvestNow.Size = UDim2.new(1, 0, 0, 36)
+btnHarvestNow.BackgroundColor3 = Color3.fromRGB(0, 140, 180)
+btnHarvestNow.AutoButtonColor = false
+btnHarvestNow.Text = "🌾 THU HOẠCH CÂY NGAY LẬP TỨC!"
 btnHarvestNow.TextColor3 = Color3.fromRGB(255, 255, 255)
-btnHarvestNow.Font = Enum.Font.SourceSansBold
+btnHarvestNow.Font = Enum.Font.GothamBold
 btnHarvestNow.TextSize = 12
 btnHarvestNow.Parent = Scroll
 local hnCorner = Instance.new("UICorner")
-hnCorner.CornerRadius = UDim.new(0, 7)
+hnCorner.CornerRadius = UDim.new(0, 8)
 hnCorner.Parent = btnHarvestNow
 
--- 11. Auto Buy Button
-createToggleButton("🛒 Auto Buy (Mua theo lọc): OFF", Color3.fromRGB(0, 150, 255), function(btn, stroke)
-    AutoBuy = not AutoBuy
-    if AutoBuy then
-        btn.Text = "🛒 Auto Buy (Mua theo lọc): ON"
-        btn.TextColor3 = Color3.fromRGB(0, 150, 255)
-        stroke.Color = Color3.fromRGB(0, 150, 255)
-    else
-        btn.Text = "🛒 Auto Buy (Mua theo lọc): OFF"
-        btn.TextColor3 = Color3.fromRGB(220, 220, 240)
-        stroke.Color = Color3.fromRGB(45, 45, 60)
-    end
+-- ═══════════════════════════════════════════════════════════
+-- SECTION 3: 🛒 MUA TỰ ĐỘNG (BĂNG CHUYỀN)
+-- ═══════════════════════════════════════════════════════════
+createSectionHeader("🛒 MUA TỰ ĐỘNG BĂNG CHUYỀN", Color3.fromRGB(0, 180, 255))
+
+-- 12. Auto Buy
+createToggleButton("🛒 Auto Buy (Theo Bộ Lọc)", AutoBuy, function(state)
+    AutoBuy = state
+    setStatus(state and "Đã BẬT Auto Buy theo bộ lọc!" or "Đã TẮT Auto Buy.")
 end)
 
--- 12. Auto Buy ALL Button
-createToggleButton("⚡ Auto Buy ALL (Mua TẤT CẢ): OFF", Color3.fromRGB(255, 170, 0), function(btn, stroke)
-    AutoBuyAll = not AutoBuyAll
-    if AutoBuyAll then
-        btn.Text = "⚡ Auto Buy ALL (Mua TẤT CẢ): ON"
-        btn.TextColor3 = Color3.fromRGB(255, 170, 0)
-        stroke.Color = Color3.fromRGB(255, 170, 0)
-    else
-        btn.Text = "⚡ Auto Buy ALL (Mua TẤT CẢ): OFF"
-        btn.TextColor3 = Color3.fromRGB(220, 220, 240)
-        stroke.Color = Color3.fromRGB(45, 45, 60)
-    end
+-- 13. Auto Buy ALL
+createToggleButton("⚡ Auto Buy ALL (Mua TẤT CẢ)", AutoBuyAll, function(state)
+    AutoBuyAll = state
+    setStatus(state and "Đã BẬT Auto Buy ALL (Mua hết)!" or "Đã TẮT Auto Buy ALL.")
 end)
 
--- 13. Open Buy Rarities Modal
-local btnRarities = Instance.new("TextButton")
-btnRarities.Size = UDim2.new(1, 0, 0, 32)
-btnRarities.BackgroundColor3 = Color3.fromRGB(35, 35, 52)
-btnRarities.Text = "🎯 Chọn Độ Hiếm Mua (Buy Rarities)..."
-btnRarities.TextColor3 = Color3.fromRGB(255, 200, 100)
-btnRarities.Font = Enum.Font.SourceSansBold
-btnRarities.TextSize = 12
-btnRarities.Parent = Scroll
-local rCorner = Instance.new("UICorner")
-rCorner.CornerRadius = UDim.new(0, 7)
-rCorner.Parent = btnRarities
-
--- 14. Open Buy Forms Modal
-local btnForms = Instance.new("TextButton")
-btnForms.Size = UDim2.new(1, 0, 0, 32)
-btnForms.BackgroundColor3 = Color3.fromRGB(35, 35, 52)
-btnForms.Text = "⚡ Chọn Dòng Form Mua (Buy Forms)..."
-btnForms.TextColor3 = Color3.fromRGB(180, 120, 255)
-btnForms.Font = Enum.Font.SourceSansBold
-btnForms.TextSize = 12
-btnForms.Parent = Scroll
-local fCorner = Instance.new("UICorner")
-fCorner.CornerRadius = UDim.new(0, 7)
-fCorner.Parent = btnForms
-
--- 15. Filter Mode Toggle Button
-local btnMode = Instance.new("TextButton")
-btnMode.Size = UDim2.new(1, 0, 0, 32)
-btnMode.BackgroundColor3 = Color3.fromRGB(0, 140, 100)
-btnMode.Text = "🔀 Chế Độ Lọc Mua: [ LỌC ĐỘC LẬP (Rarity HOẶC Form) ]"
-btnMode.TextColor3 = Color3.fromRGB(255, 255, 255)
-btnMode.Font = Enum.Font.SourceSansBold
-btnMode.TextSize = 10
-btnMode.Parent = Scroll
-local mCorner = Instance.new("UICorner")
-mCorner.CornerRadius = UDim.new(0, 7)
-mCorner.Parent = btnMode
-
-btnMode.MouseButton1Click:Connect(function()
+-- 14. Chế Độ Lọc Mua
+local btnMode, lblMode = createActionButton("🔀 Chế Độ Lọc Mua", "Hiện tại: [ " .. (FilterMode == "INDEPENDENT" and "LỌC ĐỘC LẬP (Rarity HOẶC Form)" or FilterMode) .. " ]", Color3.fromRGB(0, 255, 170), function(btn, lbl)
     if FilterMode == "INDEPENDENT" then
         FilterMode = "BOTH"
-        btnMode.Text = "🔀 Chế Độ Lọc Mua: [ KHỚP CẢ HAI (Rarity + Form) ]"
-        btnMode.TextColor3 = Color3.fromRGB(255, 200, 100)
-        btnMode.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+        lbl.Text = "Hiện tại: [ KHỚP CẢ HAI (Rarity + Form) ]"
+        lbl.TextColor3 = Color3.fromRGB(255, 200, 100)
     elseif FilterMode == "BOTH" then
         FilterMode = "RARITY_ONLY"
-        btnMode.Text = "🔀 Chế Độ Lọc Mua: [ Chỉ Độ Hiếm ]"
-        btnMode.TextColor3 = Color3.fromRGB(255, 200, 100)
-        btnMode.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+        lbl.Text = "Hiện tại: [ Chỉ Độ Hiếm ]"
+        lbl.TextColor3 = Color3.fromRGB(255, 200, 100)
     elseif FilterMode == "RARITY_ONLY" then
         FilterMode = "FORM_ONLY"
-        btnMode.Text = "🔀 Chế Độ Lọc Mua: [ Chỉ Dòng Form ]"
-        btnMode.TextColor3 = Color3.fromRGB(180, 120, 255)
-        btnMode.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+        lbl.Text = "Hiện tại: [ Chỉ Dòng Form ]"
+        lbl.TextColor3 = Color3.fromRGB(180, 120, 255)
     else
         FilterMode = "INDEPENDENT"
-        btnMode.Text = "🔀 Chế Độ Lọc Mua: [ LỌC ĐỘC LẬP (Rarity HOẶC Form) ]"
-        btnMode.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btnMode.BackgroundColor3 = Color3.fromRGB(0, 140, 100)
+        lbl.Text = "Hiện tại: [ LỌC ĐỘC LẬP (Rarity HOẶC Form) ]"
+        lbl.TextColor3 = Color3.fromRGB(0, 255, 170)
     end
 end)
 
--- 16. Auto Trash Button
-createToggleButton("🗑️ Auto Trash (Vứt rác theo lọc): OFF", Color3.fromRGB(255, 80, 120), function(btn, stroke)
-    AutoTrash = not AutoTrash
-    if AutoTrash then
-        btn.Text = "🗑️ Auto Trash (Vứt rác theo lọc): ON"
-        btn.TextColor3 = Color3.fromRGB(255, 80, 120)
-        stroke.Color = Color3.fromRGB(255, 80, 120)
-    else
-        btn.Text = "🗑️ Auto Trash (Vứt rác theo lọc): OFF"
-        btn.TextColor3 = Color3.fromRGB(220, 220, 240)
-        stroke.Color = Color3.fromRGB(45, 45, 60)
-    end
+-- 15. Chọn Độ Hiếm Mua (Có Supreme)
+local btnRarities = Instance.new("TextButton")
+btnRarities.Size = UDim2.new(1, 0, 0, 36)
+btnRarities.BackgroundColor3 = Color3.fromRGB(22, 28, 40)
+btnRarities.AutoButtonColor = false
+btnRarities.Text = "🎯 Chọn Độ Hiếm Mua (Có Supreme)..."
+btnRarities.TextColor3 = Color3.fromRGB(255, 200, 100)
+btnRarities.Font = Enum.Font.GothamBold
+btnRarities.TextSize = 11
+btnRarities.Parent = Scroll
+local rCorner = Instance.new("UICorner")
+rCorner.CornerRadius = UDim.new(0, 8)
+rCorner.Parent = btnRarities
+local rStroke = Instance.new("UIStroke")
+rStroke.Color = Color3.fromRGB(50, 60, 80)
+rStroke.Parent = btnRarities
+
+-- 16. Chọn Dòng Form Mua
+local btnForms = Instance.new("TextButton")
+btnForms.Size = UDim2.new(1, 0, 0, 36)
+btnForms.BackgroundColor3 = Color3.fromRGB(22, 28, 40)
+btnForms.AutoButtonColor = false
+btnForms.Text = "⚡ Chọn Dòng Form Mua (Buy Forms)..."
+btnForms.TextColor3 = Color3.fromRGB(190, 130, 255)
+btnForms.Font = Enum.Font.GothamBold
+btnForms.TextSize = 11
+btnForms.Parent = Scroll
+local fCorner = Instance.new("UICorner")
+fCorner.CornerRadius = UDim.new(0, 8)
+fCorner.Parent = btnForms
+local fStroke = Instance.new("UIStroke")
+fStroke.Color = Color3.fromRGB(50, 60, 80)
+fStroke.Parent = btnForms
+
+-- ═══════════════════════════════════════════════════════════
+-- SECTION 4: 🗑️ QUẢN LÝ TÚI ĐỒ & BÁN HÀNG
+-- ═══════════════════════════════════════════════════════════
+createSectionHeader("🗑️ QUẢN LÝ TÚI ĐỒ & BÁN HÀNG", Color3.fromRGB(255, 90, 130))
+
+-- 17. Auto Trash
+createToggleButton("🗑️ Auto Trash (Vứt Rác Theo Lọc)", AutoTrash, function(state)
+    AutoTrash = state
+    setStatus(state and "Đã BẬT Auto Trash!" or "Đã TẮT Auto Trash.")
 end)
 
--- 17. Open Trash Rarities Modal
+-- 18. Chọn Độ Hiếm Vứt Rác
 local btnTrashRarities = Instance.new("TextButton")
-btnTrashRarities.Size = UDim2.new(1, 0, 0, 32)
-btnTrashRarities.BackgroundColor3 = Color3.fromRGB(50, 30, 42)
+btnTrashRarities.Size = UDim2.new(1, 0, 0, 36)
+btnTrashRarities.BackgroundColor3 = Color3.fromRGB(30, 22, 30)
+btnTrashRarities.AutoButtonColor = false
 btnTrashRarities.Text = "🗑️ Chọn Độ Hiếm Vứt Rác (Trash Rarities)..."
 btnTrashRarities.TextColor3 = Color3.fromRGB(255, 120, 160)
-btnTrashRarities.Font = Enum.Font.SourceSansBold
-btnTrashRarities.TextSize = 12
+btnTrashRarities.Font = Enum.Font.GothamBold
+btnTrashRarities.TextSize = 11
 btnTrashRarities.Parent = Scroll
 local trCorner = Instance.new("UICorner")
-trCorner.CornerRadius = UDim.new(0, 7)
+trCorner.CornerRadius = UDim.new(0, 8)
 trCorner.Parent = btnTrashRarities
+local trStroke = Instance.new("UIStroke")
+trStroke.Color = Color3.fromRGB(65, 40, 55)
+trStroke.Parent = btnTrashRarities
 
--- 18. Auto Collect Button
-createToggleButton("💵 Auto Collect (Gom Tiền): OFF", Color3.fromRGB(255, 220, 0), function(btn, stroke)
-    AutoCollect = not AutoCollect
-    if AutoCollect then
-        btn.Text = "💵 Auto Collect (Gom Tiền): ON"
-        btn.TextColor3 = Color3.fromRGB(255, 220, 0)
-        stroke.Color = Color3.fromRGB(255, 220, 0)
-    else
-        btn.Text = "💵 Auto Collect (Gom Tiền): OFF"
-        btn.TextColor3 = Color3.fromRGB(220, 220, 240)
-        stroke.Color = Color3.fromRGB(45, 45, 60)
-    end
+-- 19. Auto Collect
+createToggleButton("💵 Auto Collect (Gom Tiền)", AutoCollect, function(state)
+    AutoCollect = state
+    setStatus(state and "Đã BẬT Auto Collect gom tiền!" or "Đã TẮT Auto Collect.")
 end)
 
--- 19. Auto Sell Button (Chỉ gom tiền bán, không đụng thùng rác)
-createToggleButton("💰 Auto Sell (Bán Hết): OFF", Color3.fromRGB(255, 100, 100), function(btn, stroke)
-    AutoSell = not AutoSell
-    if AutoSell then
-        btn.Text = "💰 Auto Sell (Bán Hết): ON"
-        btn.TextColor3 = Color3.fromRGB(255, 100, 100)
-        stroke.Color = Color3.fromRGB(255, 100, 100)
-    else
-        btn.Text = "💰 Auto Sell (Bán Hết): OFF"
-        btn.TextColor3 = Color3.fromRGB(220, 220, 240)
-        stroke.Color = Color3.fromRGB(45, 45, 60)
-    end
+-- 20. Auto Sell
+createToggleButton("💰 Auto Sell (Bán Hết)", AutoSell, function(state)
+    AutoSell = state
+    setStatus(state and "Đã BẬT Auto Sell bán hết!" or "Đã TẮT Auto Sell.")
 end)
 
--- 20. Anti-AFK Button
-createToggleButton("🛡️ Anti-AFK (Chống Văng): ON", Color3.fromRGB(0, 200, 255), function(btn, stroke)
-    AntiAFK = not AntiAFK
-    if AntiAFK then
-        btn.Text = "🛡️ Anti-AFK (Chống Văng): ON"
-        btn.TextColor3 = Color3.fromRGB(0, 200, 255)
-        stroke.Color = Color3.fromRGB(0, 200, 255)
-    else
-        btn.Text = "🛡️ Anti-AFK (Chống Văng): OFF"
-        btn.TextColor3 = Color3.fromRGB(220, 220, 240)
-        stroke.Color = Color3.fromRGB(45, 45, 60)
-    end
+-- ═══════════════════════════════════════════════════════════
+-- SECTION 5: ⚙️ TIỆN ÍCH HỆ THỐNG
+-- ═══════════════════════════════════════════════════════════
+createSectionHeader("⚙️ TIỆN ÍCH HỆ THỐNG", Color3.fromRGB(0, 200, 255))
+
+-- 21. Anti-AFK
+createToggleButton("🛡️ Anti-AFK (Chống Văng 24/7)", AntiAFK, function(state)
+    AntiAFK = state
+    setStatus(state and "Đã BẬT Anti-AFK chống văng game!" or "Đã TẮT Anti-AFK.")
 end)
 
 -- Status Footer Bar
 local StatusFrame = Instance.new("Frame")
-StatusFrame.Size = UDim2.new(1, 0, 0, 30)
-StatusFrame.Position = UDim2.new(0, 0, 1, -30)
-StatusFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
+StatusFrame.Size = UDim2.new(1, 0, 0, 32)
+StatusFrame.Position = UDim2.new(0, 0, 1, -32)
+StatusFrame.BackgroundColor3 = Color3.fromRGB(10, 13, 19)
 StatusFrame.BorderSizePixel = 0
 StatusFrame.Parent = MainFrame
 
+local StatusDot = Instance.new("Frame")
+StatusDot.Size = UDim2.new(0, 7, 0, 7)
+StatusDot.Position = UDim2.new(0, 10, 0.5, -3)
+StatusDot.BackgroundColor3 = Color3.fromRGB(0, 255, 170)
+StatusDot.BorderSizePixel = 0
+StatusDot.Parent = StatusFrame
+
+local dotCorner = Instance.new("UICorner")
+dotCorner.CornerRadius = UDim.new(1, 0)
+dotCorner.Parent = StatusDot
+
 local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(1, -16, 1, 0)
-StatusLabel.Position = UDim2.new(0, 8, 0, 0)
+StatusLabel.Size = UDim2.new(1, -28, 1, 0)
+StatusLabel.Position = UDim2.new(0, 24, 0, 0)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "Trạng thái: Sẵn sàng V27.2 (Ultra Safe Fix)."
-StatusLabel.TextColor3 = Color3.fromRGB(160, 160, 180)
+StatusLabel.Text = "Sẵn sàng V28 (Supreme & Khiên Sét 24/7)."
+StatusLabel.TextColor3 = Color3.fromRGB(200, 215, 235)
 StatusLabel.TextSize = 10
-StatusLabel.Font = Enum.Font.SourceSans
+StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 StatusLabel.Parent = StatusFrame
 
 local function setStatus(txt)
-    StatusLabel.Text = "Trạng thái: " .. txt
+    StatusLabel.Text = txt
 end
 
--- 🛠️ Selection Modal Component Helper
+-- 🛠️ Selection Modal Component Helper (Modern Sleek Card)
 local function createSelectionModal(titleText, itemList, selectedMap)
     local ModalFrame = Instance.new("Frame")
-    ModalFrame.Size = UDim2.new(0, 250, 0, 360)
-    ModalFrame.Position = UDim2.new(0.5, -125, 0.5, -180)
-    ModalFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    ModalFrame.Size = UDim2.new(0, 280, 0, 420)
+    ModalFrame.Position = UDim2.new(0.5, -140, 0.5, -210)
+    ModalFrame.BackgroundColor3 = Color3.fromRGB(14, 17, 24)
     ModalFrame.BorderSizePixel = 0
     ModalFrame.Visible = false
     ModalFrame.ZIndex = 100
     ModalFrame.Parent = ScreenGui
 
     local mCorner = Instance.new("UICorner")
-    mCorner.CornerRadius = UDim.new(0, 10)
+    mCorner.CornerRadius = UDim.new(0, 12)
     mCorner.Parent = ModalFrame
 
     local mStroke = Instance.new("UIStroke")
@@ -1115,69 +1129,70 @@ local function createSelectionModal(titleText, itemList, selectedMap)
     makeDraggable(ModalFrame)
 
     local mTitle = Instance.new("TextLabel")
-    mTitle.Size = UDim2.new(1, -40, 0, 30)
-    mTitle.Position = UDim2.new(0, 10, 0, 5)
+    mTitle.Size = UDim2.new(1, -40, 0, 32)
+    mTitle.Position = UDim2.new(0, 12, 0, 6)
     mTitle.BackgroundTransparency = 1
     mTitle.Text = titleText
     mTitle.TextColor3 = Color3.fromRGB(0, 255, 170)
-    mTitle.Font = Enum.Font.SourceSansBold
+    mTitle.Font = Enum.Font.GothamBold
     mTitle.TextSize = 12
     mTitle.TextXAlignment = Enum.TextXAlignment.Left
     mTitle.ZIndex = 105
     mTitle.Parent = ModalFrame
 
     local mClose = Instance.new("TextButton")
-    mClose.Size = UDim2.new(0, 24, 0, 24)
-    mClose.Position = UDim2.new(1, -28, 0, 5)
-    mClose.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    mClose.Text = "X"
+    mClose.Size = UDim2.new(0, 26, 0, 26)
+    mClose.Position = UDim2.new(1, -32, 0, 8)
+    mClose.BackgroundColor3 = Color3.fromRGB(200, 50, 65)
+    mClose.Text = "✕"
     mClose.TextColor3 = Color3.fromRGB(255, 255, 255)
-    mClose.Font = Enum.Font.SourceSansBold
+    mClose.Font = Enum.Font.GothamBold
     mClose.TextSize = 12
     mClose.ZIndex = 105
     mClose.Parent = ModalFrame
 
     local mcCorner = Instance.new("UICorner")
-    mcCorner.CornerRadius = UDim.new(0, 5)
+    mcCorner.CornerRadius = UDim.new(0, 6)
     mcCorner.Parent = mClose
 
     mClose.MouseButton1Click:Connect(function() ModalFrame.Visible = false end)
 
     local SelectAllBtn = Instance.new("TextButton")
-    SelectAllBtn.Size = UDim2.new(0.46, 0, 0, 24)
-    SelectAllBtn.Position = UDim2.new(0, 8, 0, 35)
-    SelectAllBtn.BackgroundColor3 = Color3.fromRGB(40, 120, 60)
+    SelectAllBtn.Size = UDim2.new(0.47, 0, 0, 26)
+    SelectAllBtn.Position = UDim2.new(0, 8, 0, 42)
+    SelectAllBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 100)
     SelectAllBtn.Text = "✓ Chọn Tất Cả"
     SelectAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    SelectAllBtn.Font = Enum.Font.SourceSansBold
+    SelectAllBtn.Font = Enum.Font.GothamBold
     SelectAllBtn.TextSize = 10
     SelectAllBtn.ZIndex = 105
     SelectAllBtn.Parent = ModalFrame
 
     local saCorner = Instance.new("UICorner")
-    saCorner.CornerRadius = UDim.new(0, 5)
+    saCorner.CornerRadius = UDim.new(0, 6)
     saCorner.Parent = SelectAllBtn
 
     local DeselectAllBtn = Instance.new("TextButton")
-    DeselectAllBtn.Size = UDim2.new(0.46, 0, 0, 24)
-    DeselectAllBtn.Position = UDim2.new(0.52, 0, 0, 35)
-    DeselectAllBtn.BackgroundColor3 = Color3.fromRGB(120, 40, 40)
+    DeselectAllBtn.Size = UDim2.new(0.47, 0, 0, 26)
+    DeselectAllBtn.Position = UDim2.new(0.53, -8, 0, 42)
+    DeselectAllBtn.BackgroundColor3 = Color3.fromRGB(160, 40, 50)
     DeselectAllBtn.Text = "✗ Bỏ Chọn Tất"
     DeselectAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    DeselectAllBtn.Font = Enum.Font.SourceSansBold
+    DeselectAllBtn.Font = Enum.Font.GothamBold
     DeselectAllBtn.TextSize = 10
     DeselectAllBtn.ZIndex = 105
     DeselectAllBtn.Parent = ModalFrame
 
     local daCorner = Instance.new("UICorner")
-    daCorner.CornerRadius = UDim.new(0, 5)
+    daCorner.CornerRadius = UDim.new(0, 6)
     daCorner.Parent = DeselectAllBtn
 
     local mScroll = Instance.new("ScrollingFrame")
-    mScroll.Size = UDim2.new(1, -16, 1, -70)
-    mScroll.Position = UDim2.new(0, 8, 0, 65)
+    mScroll.Size = UDim2.new(1, -16, 1, -80)
+    mScroll.Position = UDim2.new(0, 8, 0, 74)
     mScroll.BackgroundTransparency = 1
-    mScroll.ScrollBarThickness = 4
+    mScroll.ScrollBarThickness = 3
+    mScroll.ScrollBarImageColor3 = Color3.fromRGB(0, 255, 170)
     mScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
     mScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
     mScroll.ZIndex = 102
@@ -1194,45 +1209,54 @@ local function createSelectionModal(titleText, itemList, selectedMap)
         local isSel = (selectedMap[name] == true)
 
         local ibtn = Instance.new("TextButton")
-        ibtn.Size = UDim2.new(1, -6, 0, 28)
-        ibtn.BackgroundColor3 = isSel and Color3.fromRGB(0, 160, 100) or Color3.fromRGB(32, 32, 46)
-        ibtn.Text = (isSel and "[✓] " or "[ ] ") .. name
-        ibtn.TextColor3 = isSel and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 200)
-        ibtn.Font = Enum.Font.SourceSansBold
+        ibtn.Size = UDim2.new(1, -4, 0, 30)
+        ibtn.BackgroundColor3 = isSel and Color3.fromRGB(18, 42, 32) or Color3.fromRGB(20, 25, 34)
+        ibtn.Text = (isSel and " [✓] " or " [  ] ") .. name
+        ibtn.TextColor3 = isSel and Color3.fromRGB(0, 255, 170) or Color3.fromRGB(170, 180, 200)
+        ibtn.Font = Enum.Font.GothamBold
         ibtn.TextSize = 11
+        ibtn.TextXAlignment = Enum.TextXAlignment.Left
         ibtn.ZIndex = 105
         ibtn.Parent = mScroll
 
         local ic = Instance.new("UICorner")
-        ic.CornerRadius = UDim.new(0, 5)
+        ic.CornerRadius = UDim.new(0, 6)
         ic.Parent = ibtn
 
-        table.insert(itemButtons, {btn = ibtn, name = name})
+        local is_stroke = Instance.new("UIStroke")
+        is_stroke.Color = isSel and Color3.fromRGB(0, 255, 170) or Color3.fromRGB(35, 42, 56)
+        is_stroke.Thickness = 1
+        is_stroke.Parent = ibtn
+
+        table.insert(itemButtons, {btn = ibtn, name = name, stroke = is_stroke})
 
         ibtn.MouseButton1Click:Connect(function()
             selectedMap[name] = not selectedMap[name]
             local nowSel = selectedMap[name]
-            ibtn.BackgroundColor3 = nowSel and Color3.fromRGB(0, 160, 100) or Color3.fromRGB(32, 32, 46)
-            ibtn.Text = (nowSel and "[✓] " or "[ ] ") .. name
-            ibtn.TextColor3 = nowSel and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 200)
+            ibtn.BackgroundColor3 = nowSel and Color3.fromRGB(18, 42, 32) or Color3.fromRGB(20, 25, 34)
+            ibtn.Text = (nowSel and " [✓] " or " [  ] ") .. name
+            ibtn.TextColor3 = nowSel and Color3.fromRGB(0, 255, 170) or Color3.fromRGB(170, 180, 200)
+            is_stroke.Color = nowSel and Color3.fromRGB(0, 255, 170) or Color3.fromRGB(35, 42, 56)
         end)
     end
 
     SelectAllBtn.MouseButton1Click:Connect(function()
         for _, item in ipairs(itemButtons) do
             selectedMap[item.name] = true
-            item.btn.BackgroundColor3 = Color3.fromRGB(0, 160, 100)
-            item.btn.Text = "[✓] " .. item.name
-            item.btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            item.btn.BackgroundColor3 = Color3.fromRGB(18, 42, 32)
+            item.btn.Text = " [✓] " .. item.name
+            item.btn.TextColor3 = Color3.fromRGB(0, 255, 170)
+            item.stroke.Color = Color3.fromRGB(0, 255, 170)
         end
     end)
 
     DeselectAllBtn.MouseButton1Click:Connect(function()
         for _, item in ipairs(itemButtons) do
             selectedMap[item.name] = false
-            item.btn.BackgroundColor3 = Color3.fromRGB(32, 32, 46)
-            item.btn.Text = "[ ] " .. item.name
-            item.btn.TextColor3 = Color3.fromRGB(180, 180, 200)
+            item.btn.BackgroundColor3 = Color3.fromRGB(20, 25, 34)
+            item.btn.Text = " [  ] " .. item.name
+            item.btn.TextColor3 = Color3.fromRGB(170, 180, 200)
+            item.stroke.Color = Color3.fromRGB(35, 42, 56)
         end
     end)
 
